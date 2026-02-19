@@ -194,16 +194,23 @@ export class LevelSystem {
     
     startLevel(levelId: number): boolean {
         const level = this.levels.find(l => l.id === levelId);
-        if (!level || !level.unlocked) {
+        if (!level) {
+            console.warn(`Level ${levelId} not found`);
+            return false;
+        }
+        if (!level.unlocked) {
+            console.warn(`Level ${levelId} is locked`);
             return false;
         }
         
+        console.log(`Starting level ${levelId}: ${level.name}`);
         this.currentLevel = levelId;
         this.currentLevelData = level;
         this.moves = 0;
         this.score = 0;
         this.stars = 0;
         
+        // Trigger block loading if block puzzle system is listening
         return true;
     }
     

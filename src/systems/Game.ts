@@ -132,10 +132,6 @@ export class Game {
         this.audioManager.stopAmbient();
     }
     
-    get isRunning(): boolean {
-        return this._isRunning;
-    }
-    
     async enableVR(): Promise<void> {
         if (!navigator.xr) {
             throw new Error('WebXR not supported');
@@ -201,5 +197,9 @@ export class Game {
     
     getUpgradeSystem(): UpgradeSystem {
         return this.upgradeSystem;
+    }
+    
+    getBlockPuzzleSystem(): BlockPuzzleSystem {
+        return this.blockPuzzleSystem;
     }
 }

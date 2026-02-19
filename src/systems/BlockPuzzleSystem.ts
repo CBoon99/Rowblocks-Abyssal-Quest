@@ -36,8 +36,10 @@ export class BlockPuzzleSystem {
     
     setLevelSystem(levelSystem: any): void {
         this.levelSystem = levelSystem;
-        // Load current level blocks
-        this.loadLevelBlocks();
+        // Load current level blocks if a level is already selected
+        if (levelSystem && levelSystem.getCurrentLevel()) {
+            this.loadLevelBlocks();
+        }
     }
     
     setUpgradeSystem(upgradeSystem: any): void {
@@ -45,11 +47,19 @@ export class BlockPuzzleSystem {
         this.maxUndos = upgradeSystem.getUpgradeEffect('undo') || 0;
     }
     
-    private loadLevelBlocks(): void {
-        if (!this.levelSystem) return;
+    loadLevelBlocks(): void {
+        if (!this.levelSystem) {
+            console.warn('BlockPuzzleSystem: No level system set');
+            return;
+        }
         
         const level = this.levelSystem.getCurrentLevel();
-        if (!level) return;
+        if (!level) {
+            console.warn('BlockPuzzleSystem: No current level');
+            return;
+        }
+        
+        console.log(`Loading blocks for level ${level.id}: ${level.name}`);
         
         // Clear existing blocks
         this.blocks.forEach(block => {
@@ -63,8 +73,22 @@ export class BlockPuzzleSystem {
         
         // Create blocks from level data
         level.blocks.forEach(blockData => {
-            this.createBlock(blockData.x, blockData.y, blockData.z, blockData.type);
+            // Map level block types to BlockPuzzleSystem types
+            let blockType: Block['type'] = 'rock';
+            if (blockData.type === 'start' || blockData.type === 'exit') {
+                blockType = 'glow'; // Special blocks are glowing
+            } else if (blockData.type === 'gem') {
+                blockType = 'gem';
+            } else if (blockData.type === 'coral') {
+                blockType = 'coral';
+            } else {
+                blockType = blockData.type as Block['type'];
+            }
+            
+            this.createBlock(blockData.x, blockData.y, blockData.z, blockType);
         });
+        
+        console.log(`Created ${this.blocks.length} blocks`);
     }
     
     async init(): Promise<void> {

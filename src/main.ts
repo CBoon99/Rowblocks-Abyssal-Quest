@@ -32,7 +32,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('level-select-container')!,
             game.getLevelSystem(),
             (levelId) => {
-                if (game.getLevelSystem().startLevel(levelId)) {
+                console.log(`Level ${levelId} selected`);
+                const levelSystem = game.getLevelSystem();
+                
+                if (levelSystem.startLevel(levelId)) {
+                    console.log(`Level ${levelId} started successfully`);
+                    
+                    // Reload blocks for the new level
+                    const blockSystem = game.getBlockPuzzleSystem();
+                    if (blockSystem && typeof blockSystem.loadLevelBlocks === 'function') {
+                        blockSystem.loadLevelBlocks();
+                    } else {
+                        console.error('BlockPuzzleSystem.loadLevelBlocks is not available');
+                    }
+                    
                     // Hide all UI overlays
                     levelSelectUI.hide();
                     const startScreen = document.getElementById('start-screen');
@@ -51,10 +64,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     
                     // Start the game
+                    console.log('Starting game...');
                     game.start();
+                    console.log('Game started, isRunning:', game.isRunning);
                     
                     // Show game HUD
                     gameHUD.show();
+                } else {
+                    console.error(`Failed to start level ${levelId}`);
                 }
             }
         );
@@ -145,9 +162,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Make game accessible globally for debugging
         (window as any).game = game;
         
+        // Connect the HTML "Dive In" button if it exists
+        const startBtn = document.getElementById('start-btn');
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                mainMenuUI.hide();
+                levelSelectUI.show();
+            });
+        }
+        
         console.log('✅ Game initialized successfully!');
+        console.log('Game object:', game);
+        console.log('Level system:', game.getLevelSystem());
+        console.log('Available levels:', game.getLevelSystem().getAllLevels());
     } catch (error) {
         console.error('❌ Failed to initialize game:', error);
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         if (loadingEl) {
             loadingEl.innerHTML = '<p style="color: #ff0000;">Failed to load game. Check console for details.</p>';
         }

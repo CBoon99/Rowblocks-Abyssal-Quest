@@ -49,16 +49,32 @@ export class SwimmerController {
     }
     
     private setupEventListeners(): void {
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => this.onKeyDown(e));
-        document.addEventListener('keyup', (e) => this.onKeyUp(e));
+        // Keyboard controls - use capture phase to ensure we get events
+        const keyDownHandler = (e: KeyboardEvent) => {
+            // Don't capture if typing in an input field
+            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+                return;
+            }
+            this.onKeyDown(e);
+        };
+        const keyUpHandler = (e: KeyboardEvent) => {
+            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+                return;
+            }
+            this.onKeyUp(e);
+        };
+        
+        document.addEventListener('keydown', keyDownHandler, true);
+        document.addEventListener('keyup', keyUpHandler, true);
         
         // Mouse look (pointer lock) - request on canvas element
         const requestLock = () => {
             // Find canvas element
             const canvas = document.querySelector('canvas');
             if (canvas && document.pointerLockElement !== canvas) {
-                canvas.requestPointerLock();
+                canvas.requestPointerLock().catch(err => {
+                    console.warn('Pointer lock failed:', err);
+                });
             }
         };
         
@@ -66,7 +82,7 @@ export class SwimmerController {
         document.addEventListener('click', (e) => {
             // Only request lock if clicking on canvas area (not UI)
             const target = e.target as HTMLElement;
-            if (target.tagName === 'CANVAS' || target.id === 'canvas-container' || !target.closest('#ui-overlay')) {
+            if (target.tagName === 'CANVAS' || target.id === 'canvas-container' || (!target.closest('#ui-overlay') && !target.closest('#start-screen'))) {
                 requestLock();
             }
         });
@@ -77,8 +93,10 @@ export class SwimmerController {
             const canvas = document.querySelector('canvas');
             if (document.pointerLockElement === canvas) {
                 document.addEventListener('mousemove', mouseMoveHandler);
+                console.log('Pointer lock acquired - mouse controls enabled');
             } else {
                 document.removeEventListener('mousemove', mouseMoveHandler);
+                console.log('Pointer lock released');
             }
         });
     }
