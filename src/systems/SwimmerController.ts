@@ -33,10 +33,14 @@ export class SwimmerController {
         const shape = new CANNON.Cylinder(0.3, 0.3, 1.5, 8);
         this.physicsBody = new CANNON.Body({ mass: 1 });
         this.physicsBody.addShape(shape);
-        this.physicsBody.position.set(0, 5, 0);
+        // Position swimmer above the block grid
+        this.physicsBody.position.set(0, 8, 5);
         this.physicsBody.linearDamping = 0.8; // Water resistance
         this.physicsBody.angularDamping = 0.9;
         physicsWorld.addBody(this.physicsBody);
+        
+        // Set initial camera position to match physics body
+        this.camera.position.set(0, 8, 5);
         
         // Create flashlight
         this.flashlight = new THREE.SpotLight(0xffffff, 2, 50, Math.PI / 6, 0.3);

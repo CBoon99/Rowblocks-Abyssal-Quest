@@ -83,28 +83,27 @@ export class AudioManager {
         this.updateListenerPosition();
     }
     
-    private createProceduralAmbient(): Howl {
+    private createProceduralAmbient(): Howl | null {
         // Create a procedural ambient sound using Web Audio API
         // This simulates underwater ambience until real audio files are added
         
-        const options: HowlOptions = {
-            src: [], // Will be generated procedurally
-            loop: true,
-            volume: 0.3,
-            autoplay: false
-        };
-        
-        // For now, create a silent placeholder that can be replaced with real audio
-        // In production, load actual audio files here
-        const howl = new Howl(options);
-        
-        // Generate procedural tone if Web Audio API is available
-        // Note: Procedural generation happens separately, Howl is just a placeholder
-        if (this.audioContext) {
+        try {
+            // Howl requires at least one source file, so we'll use a data URI for silence
+            // or skip Howl entirely and use Web Audio API directly
+            if (!this.audioContext) {
+                console.warn('AudioContext not available, skipping ambient sound');
+                return null;
+            }
+            
+            // Generate procedural tone using Web Audio API directly
             this.generateProceduralAmbient();
+            
+            // Return null since we're using Web Audio API directly, not Howl
+            return null;
+        } catch (error) {
+            console.warn('Could not create ambient sound:', error);
+            return null;
         }
-        
-        return howl;
     }
     
     private generateProceduralAmbient(): void {
@@ -135,54 +134,59 @@ export class AudioManager {
     }
     
     private initSoundEffects(): void {
+        // Create placeholder sounds that won't crash if Howl fails
         // Block slide sound
-        this.sounds.set('blockSlide', this.createProceduralSound('blockSlide'));
-        
-        // Win sound
-        this.sounds.set('win', this.createProceduralSound('win'));
-        
-        // Collect sound
-        this.sounds.set('collect', this.createProceduralSound('collect'));
-        
-        // Bubble sound
-        this.sounds.set('bubble', this.createProceduralSound('bubble'));
-        
-        // Sonar ping
-        this.sounds.set('sonar', this.createProceduralSound('sonar'));
-    }
-    
-    private createProceduralSound(type: string): Howl {
-        // Create procedural sounds using Web Audio API
-        const options: HowlOptions = {
-            src: [],
-            volume: 0.5,
-            autoplay: false
-        };
-        
-        const howl = new Howl(options);
-        
-        // Generate sound based on type
-        if (this.audioContext) {
-            switch (type) {
-                case 'blockSlide':
-                    this.generateBlockSlideSound();
-                    break;
-                case 'win':
-                    this.generateWinSound();
-                    break;
-                case 'collect':
-                    this.generateCollectSound();
-                    break;
-                case 'bubble':
-                    this.generateBubbleSound();
-                    break;
-                case 'sonar':
-                    this.generateSonarSound();
-                    break;
-            }
+        try {
+            this.sounds.set('blockSlide', this.createProceduralSound('blockSlide'));
+        } catch (e) {
+            console.warn('Could not create blockSlide sound:', e);
         }
         
-        return howl;
+        // Win sound
+        try {
+            this.sounds.set('win', this.createProceduralSound('win'));
+        } catch (e) {
+            console.warn('Could not create win sound:', e);
+        }
+        
+        // Collect sound
+        try {
+            this.sounds.set('collect', this.createProceduralSound('collect'));
+        } catch (e) {
+            console.warn('Could not create collect sound:', e);
+        }
+        
+        // Bubble sound
+        try {
+            this.sounds.set('bubble', this.createProceduralSound('bubble'));
+        } catch (e) {
+            console.warn('Could not create bubble sound:', e);
+        }
+        
+        // Sonar ping
+        try {
+            this.sounds.set('sonar', this.createProceduralSound('sonar'));
+        } catch (e) {
+            console.warn('Could not create sonar sound:', e);
+        }
+    }
+    
+    private createProceduralSound(type: string): Howl | null {
+        // Create procedural sounds using Web Audio API
+        // Since we don't have audio files, we'll use Web Audio API directly
+        // Return null to indicate no Howl instance (sounds will be generated procedurally)
+        try {
+            if (!this.audioContext) {
+                return null;
+            }
+            
+            // Don't generate sounds here - they'll be generated on-demand when played
+            // This just creates a placeholder entry in the sounds map
+            return null;
+        } catch (error) {
+            console.warn(`Could not create ${type} sound:`, error);
+            return null;
+        }
     }
     
     private generateBlockSlideSound(): void {
@@ -298,13 +302,30 @@ export class AudioManager {
     }
     
     playAmbient(): void {
-        if (this.ambientSound && !this.ambientSound.playing()) {
-            this.ambientSound.play();
-        }
-        
-        // Also play procedural ambient if available
-        if ((this as any)._ambientGain) {
-            (this as any)._ambientGain.gain.value = 0.1;
+        try {
+            // Play procedural ambient (Web Audio API)
+            if ((this as any)._ambientGain) {
+                (this as any)._ambientGain.gain.value = 0.1;
+            }
+            
+            // Try to play Howl ambient if it exists and is valid
+            if (this.ambientSound) {
+                try {
+                    // Check if Howl is properly initialized
+                    if (typeof this.ambientSound.playing === 'function') {
+                        if (!this.ambientSound.playing()) {
+                            this.ambientSound.play();
+                        }
+                    }
+                } catch (e) {
+                    // Howl might not be properly initialized, that's okay
+                    // Procedural ambient is already playing
+                    console.warn('Howl ambient sound not available, using procedural audio');
+                }
+            }
+        } catch (error) {
+            console.warn('Could not play ambient sound:', error);
+            // Don't crash - game can continue without audio
         }
     }
     
@@ -319,15 +340,27 @@ export class AudioManager {
     }
     
     playSound(name: string, position?: THREE.Vector3): void {
-        const sound = this.sounds.get(name);
-        if (sound) {
-            if (position) {
-                // Play as positional 3D sound
-                this.playPositionalSound(name, position);
+        try {
+            const sound = this.sounds.get(name);
+            if (sound) {
+                try {
+                    if (position) {
+                        // Play as positional 3D sound
+                        this.playPositionalSound(name, position);
+                    } else {
+                        // Play as regular sound
+                        sound.play();
+                    }
+                } catch (e) {
+                    // Howl might not be initialized, generate procedurally instead
+                    this.generateSoundForType(name);
+                }
             } else {
-                // Play as regular sound
-                sound.play();
+                // No Howl instance, generate procedurally
+                this.generateSoundForType(name);
             }
+        } catch (error) {
+            console.warn(`Error playing sound ${name}:`, error);
         }
     }
     

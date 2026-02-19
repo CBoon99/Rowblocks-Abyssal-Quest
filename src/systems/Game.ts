@@ -60,7 +60,9 @@ export class Game {
             0.1,
             1000
         );
-        this.camera.position.set(0, 5, 0);
+        // Position camera to see the block grid (blocks are centered around origin)
+        // Camera will be controlled by SwimmerController, but set initial position
+        this.camera.position.set(0, 8, 5);
         
         // Initialize systems
         this.physicsWorld = new PhysicsWorld();
@@ -113,13 +115,38 @@ export class Game {
         if (this._isRunning) return;
         
         // Start level 1 if no level selected
-        if (!this.levelSystem.getCurrentLevel()) {
+        const currentLevel = this.levelSystem.getCurrentLevel();
+        if (!currentLevel) {
+            console.log('No level selected, starting level 1');
             this.levelSystem.startLevel(1);
+        }
+        
+        // Ensure blocks are loaded for the current level
+        const level = this.levelSystem.getCurrentLevel();
+        if (level) {
+            console.log(`Starting game with level ${level.id}: ${level.name}`);
+            // Always reload blocks to ensure they're created
+            console.log('Loading blocks for current level...');
+            this.blockPuzzleSystem.loadLevelBlocks();
+            const blockCount = (this.blockPuzzleSystem as any).blocks?.length || 0;
+            console.log(`Blocks loaded: ${blockCount}`);
+        } else {
+            console.error('Cannot start game: No level available');
+            return;
         }
         
         this._isRunning = true;
         this.lastTime = performance.now();
-        this.audioManager.playAmbient();
+        
+        // Start audio
+        try {
+            this.audioManager.playAmbient();
+        } catch (e) {
+            console.warn('Could not play ambient audio:', e);
+        }
+        
+        // Start animation loop
+        console.log('Starting animation loop...');
         this.animate();
     }
     
@@ -143,7 +170,10 @@ export class Game {
     }
     
     private animate = (): void => {
-        if (!this._isRunning) return;
+        if (!this._isRunning) {
+            console.warn('Animation loop stopped: _isRunning is false');
+            return;
+        }
         
         this.animationId = requestAnimationFrame(this.animate);
         
