@@ -1,12 +1,8 @@
-# Netlify configuration for Rowblocks: Abyssal Quest
-
 [build]
-  # No build command needed - it's a static site
-  publish = "."
-  command = ""
+  command = "npm run build"
+  publish = "dist"
 
 [[redirects]]
-  # Redirect all routes to index.html for SPA behavior
   from = "/*"
   to = "/index.html"
   status = 200
