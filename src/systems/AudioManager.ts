@@ -16,30 +16,62 @@ export class AudioManager {
         this.listener = new THREE.AudioListener();
         this.camera.add(this.listener);
         
-        // Initialize audio context
+        // Initialize audio context immediately
         this.initAudioContext();
         
-        // Initialize underwater audio system
-        this.underwaterAudio = new UnderwaterAudio(this.listener);
+        // Initialize underwater audio system (will be created in init() if context is ready)
     }
     
     private initAudioContext(): void {
         try {
-            this.audioContext = this.listener.getContext() as AudioContext;
+            // THREE.AudioListener has a 'context' property, not getContext() method
+            // The context is created when the listener is added to the camera
+            // We need to wait for it to be available or create our own
+            if ((this.listener as any).context) {
+                this.audioContext = (this.listener as any).context as AudioContext;
+            } else {
+                // Fallback: create new AudioContext
+                this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
             
             // Create underwater filter (low-pass filter to simulate water)
-            if (this.audioContext) {
-                this.underwaterFilter = this.audioContext.createBiquadFilter();
-                this.underwaterFilter.type = 'lowpass';
-                this.underwaterFilter.frequency.value = 2000; // Muffled underwater sound
-                this.underwaterFilter.Q.value = 1;
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                try {
+                    this.underwaterFilter = this.audioContext.createBiquadFilter();
+                    this.underwaterFilter.type = 'lowpass';
+                    this.underwaterFilter.frequency.value = 2000; // Muffled underwater sound
+                    this.underwaterFilter.Q.value = 1;
+                } catch (e) {
+                    console.warn('Could not create underwater filter:', e);
+                }
             }
         } catch (error) {
             console.warn('Audio context initialization failed:', error);
+            // Fallback: create new AudioContext if listener context fails
+            try {
+                this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            } catch (e) {
+                console.warn('Could not create AudioContext:', e);
+                // Game can continue without audio
+            }
         }
     }
     
     async init(): Promise<void> {
+        // Ensure audio context is initialized
+        if (!this.audioContext) {
+            this.initAudioContext();
+        }
+        
+        // Initialize underwater audio system if context is available
+        if (this.audioContext && !this.underwaterAudio) {
+            try {
+                this.underwaterAudio = new UnderwaterAudio(this.listener);
+            } catch (error) {
+                console.warn('UnderwaterAudio initialization failed:', error);
+            }
+        }
+        
         // Initialize ambient underwater sound
         // Using procedural audio generation since we don't have audio files yet
         this.ambientSound = this.createProceduralAmbient();
@@ -67,7 +99,8 @@ export class AudioManager {
         const howl = new Howl(options);
         
         // Generate procedural tone if Web Audio API is available
-        if (this.audioContext && !howl._sounds.length) {
+        // Note: Procedural generation happens separately, Howl is just a placeholder
+        if (this.audioContext) {
             this.generateProceduralAmbient();
         }
         

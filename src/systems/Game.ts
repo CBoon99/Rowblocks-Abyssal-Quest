@@ -83,19 +83,30 @@ export class Game {
     }
     
     async init(): Promise<void> {
-        // Initialize scene
-        await this.scene3D.init();
-        
-        // Initialize audio
-        await this.audioManager.init();
-        
-        // Initialize block puzzle system
-        await this.blockPuzzleSystem.init();
-        
-        // Connect audio manager to block puzzle system
-        this.blockPuzzleSystem.setAudioManager(this.audioManager);
-        
-        console.log('Game systems initialized');
+        try {
+            // Initialize scene
+            await this.scene3D.init();
+            
+            // Initialize audio (with error handling)
+            try {
+                await this.audioManager.init();
+            } catch (error) {
+                console.warn('Audio initialization failed, continuing without audio:', error);
+            }
+            
+            // Initialize block puzzle system
+            await this.blockPuzzleSystem.init();
+            
+            // Connect systems
+            this.blockPuzzleSystem.setAudioManager(this.audioManager);
+            this.blockPuzzleSystem.setLevelSystem(this.levelSystem);
+            this.blockPuzzleSystem.setUpgradeSystem(this.upgradeSystem);
+            
+            console.log('Game systems initialized');
+        } catch (error) {
+            console.error('Failed to initialize game systems:', error);
+            throw error;
+        }
     }
     
     start(): void {

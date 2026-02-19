@@ -14,7 +14,13 @@ export class SpatialAudio {
     constructor(camera: THREE.PerspectiveCamera) {
         this.listener = new THREE.AudioListener();
         camera.add(this.listener);
-        this.audioContext = this.listener.getContext() as AudioContext;
+        // THREE.AudioListener has a 'context' property, not getContext() method
+        try {
+            this.audioContext = (this.listener as any).context as AudioContext;
+        } catch (error) {
+            // Fallback: create new AudioContext
+            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
     }
     
     /**

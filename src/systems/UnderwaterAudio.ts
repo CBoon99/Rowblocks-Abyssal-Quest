@@ -12,25 +12,50 @@ export class UnderwaterAudio {
     private depth: number = 0;
     
     constructor(audioListener: THREE.AudioListener) {
-        this.audioContext = audioListener.getContext() as AudioContext;
+        // THREE.AudioListener has a 'context' property, not getContext() method
+        try {
+            if ((audioListener as any).context) {
+                this.audioContext = (audioListener as any).context as AudioContext;
+            } else {
+                // Fallback: create new AudioContext
+                this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+        } catch (error) {
+            // Fallback: create new AudioContext
+            try {
+                this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            } catch (e) {
+                console.warn('Could not create AudioContext for UnderwaterAudio:', e);
+                throw new Error('Could not initialize AudioContext');
+            }
+        }
         
-        // Create low-pass filter for muffled underwater sound
-        this.lowPassFilter = this.audioContext.createBiquadFilter();
-        this.lowPassFilter.type = 'lowpass';
-        this.lowPassFilter.frequency.value = 2000; // Start frequency
-        this.lowPassFilter.Q.value = 1;
+        if (!this.audioContext || this.audioContext.state === 'closed') {
+            throw new Error('AudioContext is not available');
+        }
         
-        // Create gain node
-        this.gainNode = this.audioContext.createGain();
-        this.gainNode.gain.value = 1.0;
-        
-        // Create reverb for underwater echo
-        this.createReverb();
-        
-        // Connect filter chain
-        this.lowPassFilter.connect(this.gainNode);
-        if (this.reverbConvolver) {
-            this.gainNode.connect(this.reverbConvolver);
+        try {
+            // Create low-pass filter for muffled underwater sound
+            this.lowPassFilter = this.audioContext.createBiquadFilter();
+            this.lowPassFilter.type = 'lowpass';
+            this.lowPassFilter.frequency.value = 2000; // Start frequency
+            this.lowPassFilter.Q.value = 1;
+            
+            // Create gain node
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.gain.value = 1.0;
+            
+            // Create reverb for underwater echo
+            this.createReverb();
+            
+            // Connect filter chain
+            this.lowPassFilter.connect(this.gainNode);
+            if (this.reverbConvolver) {
+                this.gainNode.connect(this.reverbConvolver);
+            }
+        } catch (error) {
+            console.warn('Failed to set up UnderwaterAudio filters:', error);
+            throw error;
         }
     }
     
