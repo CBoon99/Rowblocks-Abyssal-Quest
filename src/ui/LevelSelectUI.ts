@@ -4,6 +4,9 @@ export class LevelSelectUI {
     private container: HTMLElement;
     private levelSystem: LevelSystem;
     private onLevelSelect: (levelId: number) => void;
+    private selectedIndex: number = 0;
+    private levels: LevelData[] = [];
+    private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
     
     constructor(
         container: HTMLElement,
@@ -17,7 +20,13 @@ export class LevelSelectUI {
     }
     
     render(): void {
-        const levels = this.levelSystem.getAllLevels();
+        this.levels = this.levelSystem.getAllLevels();
+        const unlockedLevels = this.levels.filter(l => l.unlocked);
+        
+        // Reset selection to first unlocked level
+        if (unlockedLevels.length > 0) {
+            this.selectedIndex = this.levels.findIndex(l => l.id === unlockedLevels[0].id);
+        }
         
         this.container.innerHTML = `
             <div class="level-select-screen">
@@ -35,19 +44,22 @@ export class LevelSelectUI {
                     </div>
                 </div>
                 <div class="levels-grid" id="levels-grid">
-                    ${levels.map(level => this.renderLevelCard(level)).join('')}
+                    ${this.levels.map(level => this.renderLevelCard(level)).join('')}
+                </div>
+                <div class="level-select-hint">
+                    <p>Use Arrow Keys to navigate • Enter to select • ESC to close</p>
                 </div>
                 <button class="btn-close" id="close-level-select">Close</button>
             </div>
         `;
         
         // Attach event listeners
-        levels.forEach(level => {
+        this.levels.forEach(level => {
             const card = document.getElementById(`level-${level.id}`);
             if (card) {
                 if (level.unlocked) {
                     card.addEventListener('click', () => {
-                        this.onLevelSelect(level.id);
+                        this.selectLevel(level.id);
                     });
                 }
             }
@@ -58,6 +70,87 @@ export class LevelSelectUI {
         });
         
         this.updateStats();
+        this.updateSelection();
+        this.setupKeyboardNavigation();
+    }
+    
+    private setupKeyboardNavigation(): void {
+        // Remove old handler if exists
+        if (this.keyboardHandler) {
+            document.removeEventListener('keydown', this.keyboardHandler);
+        }
+        
+        // Add new handler
+        this.keyboardHandler = (e: KeyboardEvent) => {
+            if (this.container.style.display === 'none') return;
+            
+            const unlockedLevels = this.levels.filter(l => l.unlocked);
+            if (unlockedLevels.length === 0) return;
+            
+            let currentUnlockedIndex = unlockedLevels.findIndex(l => l.id === this.levels[this.selectedIndex].id);
+            
+            switch (e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    currentUnlockedIndex = Math.max(0, currentUnlockedIndex - 1);
+                    this.selectedIndex = this.levels.findIndex(l => l.id === unlockedLevels[currentUnlockedIndex].id);
+                    this.updateSelection();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    currentUnlockedIndex = Math.min(unlockedLevels.length - 1, currentUnlockedIndex + 1);
+                    this.selectedIndex = this.levels.findIndex(l => l.id === unlockedLevels[currentUnlockedIndex].id);
+                    this.updateSelection();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    // Move up by 4 (assuming 4 columns)
+                    currentUnlockedIndex = Math.max(0, currentUnlockedIndex - 4);
+                    this.selectedIndex = this.levels.findIndex(l => l.id === unlockedLevels[currentUnlockedIndex].id);
+                    this.updateSelection();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    // Move down by 4
+                    currentUnlockedIndex = Math.min(unlockedLevels.length - 1, currentUnlockedIndex + 4);
+                    this.selectedIndex = this.levels.findIndex(l => l.id === unlockedLevels[currentUnlockedIndex].id);
+                    this.updateSelection();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    const selectedLevel = this.levels[this.selectedIndex];
+                    if (selectedLevel && selectedLevel.unlocked) {
+                        this.selectLevel(selectedLevel.id);
+                    }
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    this.hide();
+                    break;
+            }
+        };
+        
+        document.addEventListener('keydown', this.keyboardHandler);
+    }
+    
+    private updateSelection(): void {
+        this.levels.forEach((level, index) => {
+            const card = document.getElementById(`level-${level.id}`);
+            if (card) {
+                if (index === this.selectedIndex && level.unlocked) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            }
+        });
+    }
+    
+    private selectLevel(levelId: number): void {
+        const level = this.levels.find(l => l.id === levelId);
+        if (level && level.unlocked) {
+            this.onLevelSelect(levelId);
+        }
     }
     
     private renderLevelCard(level: LevelData): string {
@@ -102,6 +195,11 @@ export class LevelSelectUI {
     
     hide(): void {
         this.container.style.display = 'none';
+        // Remove keyboard handler when hidden
+        if (this.keyboardHandler) {
+            document.removeEventListener('keydown', this.keyboardHandler);
+            this.keyboardHandler = null;
+        }
     }
     
     update(): void {

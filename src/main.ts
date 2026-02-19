@@ -33,12 +33,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             game.getLevelSystem(),
             (levelId) => {
                 if (game.getLevelSystem().startLevel(levelId)) {
+                    // Hide all UI overlays
                     levelSelectUI.hide();
-                    game.start();
                     const startScreen = document.getElementById('start-screen');
                     if (startScreen) {
                         startScreen.classList.add('hidden');
                     }
+                    const upgradeShop = document.getElementById('upgrade-shop-container');
+                    if (upgradeShop) {
+                        upgradeShop.style.display = 'none';
+                    }
+                    
+                    // Show canvas and start game
+                    const canvasContainer = document.getElementById('canvas-container');
+                    if (canvasContainer) {
+                        canvasContainer.style.display = 'block';
+                    }
+                    
+                    // Start the game
+                    game.start();
+                    
+                    // Show game HUD
+                    gameHUD.show();
                 }
             }
         );

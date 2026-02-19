@@ -53,18 +53,32 @@ export class SwimmerController {
         document.addEventListener('keydown', (e) => this.onKeyDown(e));
         document.addEventListener('keyup', (e) => this.onKeyUp(e));
         
-        // Mouse look (pointer lock)
-        document.addEventListener('click', () => {
-            if (document.pointerLockElement !== document.body) {
-                document.body.requestPointerLock();
+        // Mouse look (pointer lock) - request on canvas element
+        const requestLock = () => {
+            // Find canvas element
+            const canvas = document.querySelector('canvas');
+            if (canvas && document.pointerLockElement !== canvas) {
+                canvas.requestPointerLock();
+            }
+        };
+        
+        // Request pointer lock on click (but not when clicking UI)
+        document.addEventListener('click', (e) => {
+            // Only request lock if clicking on canvas area (not UI)
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'CANVAS' || target.id === 'canvas-container' || !target.closest('#ui-overlay')) {
+                requestLock();
             }
         });
         
+        // Handle pointer lock changes
+        const mouseMoveHandler = (e: MouseEvent) => this.onMouseMove(e);
         document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === document.body) {
-                document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+            const canvas = document.querySelector('canvas');
+            if (document.pointerLockElement === canvas) {
+                document.addEventListener('mousemove', mouseMoveHandler);
             } else {
-                document.removeEventListener('mousemove', (e) => this.onMouseMove(e));
+                document.removeEventListener('mousemove', mouseMoveHandler);
             }
         });
     }
@@ -103,14 +117,20 @@ export class SwimmerController {
     }
     
     update(deltaTime: number): void {
+        // Apply camera rotation from yaw/pitch objects
+        this.euler.set(0, 0, 0, 'YXZ');
+        this.euler.y = this.yawObject.rotation.y;
+        this.euler.x = this.pitchObject.rotation.x;
+        this.camera.rotation.setFromEuler(this.euler);
+        
         // Update camera position from physics body
         this.camera.position.copy(this.physicsBody.position as any);
         this.camera.position.y += 0.5; // Offset for eye level
         
-        // Calculate movement direction
+        // Calculate movement direction based on camera rotation
         this.velocity.set(0, 0, 0);
         this.direction.set(0, 0, -1);
-        this.direction.applyQuaternion(this.yawObject.quaternion);
+        this.direction.applyEuler(this.camera.rotation);
         
         if (this.moveForward) {
             this.velocity.add(this.direction.clone().multiplyScalar(this.SPEED));
@@ -119,9 +139,9 @@ export class SwimmerController {
             this.velocity.add(this.direction.clone().multiplyScalar(-this.SPEED));
         }
         
-        // Strafe
+        // Strafe - use camera's right vector
         const right = new THREE.Vector3(1, 0, 0);
-        right.applyQuaternion(this.yawObject.quaternion);
+        right.applyEuler(this.camera.rotation);
         
         if (this.moveLeft) {
             this.velocity.add(right.clone().multiplyScalar(-this.SPEED));
@@ -139,17 +159,10 @@ export class SwimmerController {
         }
         
         // Apply velocity to physics body
-        this.physicsBody.velocity.set(
-            this.velocity.x,
-            this.physicsBody.velocity.y + this.velocity.y * deltaTime,
-            this.velocity.z
-        );
-        
-        // Apply horizontal movement
         const currentVel = this.physicsBody.velocity;
         this.physicsBody.velocity.set(
             this.velocity.x,
-            currentVel.y,
+            currentVel.y + this.velocity.y * deltaTime,
             this.velocity.z
         );
         

@@ -174,4 +174,12 @@ export class GameHUD {
             loseScreen.remove();
         });
     }
+    
+    show(): void {
+        this.container.style.display = 'block';
+    }
+    
+    hide(): void {
+        this.container.style.display = 'none';
+    }
 }
