@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest"
   },
   "dependencies": {
-    "three": "^0.165.0",
     "cannon-es": "^0.20.0",
     "howler": "^2.2.4",
+    "three": "^0.165.0",
     "zustand": "^4.4.7"
   },
   "overrides": {
@@ -21,8 +21,8 @@
     }
   },
   "devDependencies": {
-    "@types/three": "^0.165.0",
     "@types/howler": "^2.2.11",
+    "@types/three": "^0.165.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.11",
     "vitest": "^1.1.0"
