@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rowblocks: Abyssal Quest - 3D</title>
+    <link rel="stylesheet" href="/src/ui/styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+        }
+        
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+        
+        .hud-stat {
+            background: rgba(0, 30, 60, 0.9);
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 10, 30, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 200;
+        }
+        
+        .screen-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(180deg, #00d4ff 0%, #00a8cc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
+        }
+        
+        #controls-info {
+            margin-top: 2rem;
+            text-align: left;
+            background: rgba(0, 100, 150, 0.2);
+            padding: 1.5rem;
+            border-radius: 10px;
+        }
+        
+        #controls-info h3 {
+            margin-bottom: 0.5rem;
+            color: #00d4ff;
+        }
+        
+        #controls-info p {
+            margin: 0.3rem 0;
+            color: #ccc;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 300;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 212, 255, 0.3);
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="canvas-container"></div>
+        
+        <div id="ui-overlay">
+            <div id="game-hud-container"></div>
+            <div id="level-select-container" style="display: none;"></div>
+            <div id="upgrade-shop-container" style="display: none;"></div>
+        </div>
+        
+        <div id="start-screen">
+            <div class="screen-content">
+                <h1>Rowblocks: Abyssal Quest</h1>
+                <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #88d0ff;">3D Immersive Underwater Adventure</p>
+                <button id="start-btn" class="btn btn-primary">Dive In</button>
+                <button id="vr-btn" class="btn btn-primary" style="display: none;">Enter VR</button>
+                <div id="controls-info">
+                    <h3>Controls</h3>
+                    <p><strong>WASD</strong> - Swim forward/back/strafe</p>
+                    <p><strong>Mouse</strong> - Look around</p>
+                    <p><strong>Space</strong> - Swim up</p>
+                    <p><strong>Shift</strong> - Swim down</p>
+                    <p><strong>Click</strong> - Select block row/plane</p>
+                    <p><strong>Arrow Keys</strong> - Slide selected row</p>
+                    <p><strong>ESC</strong> - Pause</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Loading 3D World...</p>
+        </div>
+    </div>
+    
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
