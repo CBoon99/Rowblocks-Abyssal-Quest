@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rowblocks: Abyssal Quest</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- HUD -->
+        <div id="hud">
+            <div id="top-bar">
+                <div class="stat">
+                    <span class="stat-icon">💎</span>
+                    <span id="pearls-count">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">🌊</span>
+                    <span id="conservation-points">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">🐟</span>
+                    <span id="fish-count">0</span>
+                </div>
+            </div>
+            
+            <div id="ability-bar">
+                <button class="ability-btn" id="sonar-btn" title="Sonar Ping">
+                    <span>📡</span>
+                </button>
+                <button class="ability-btn" id="echo-btn" title="Echo Call">
+                    <span>🔊</span>
+                </button>
+                <button class="ability-btn" id="nudge-btn" title="Nudge">
+                    <span>💨</span>
+                </button>
+                <button class="ability-btn" id="speed-btn" title="Speed Burst">
+                    <span>⚡</span>
+                </button>
+                <button class="ability-btn" id="light-btn" title="Bioluminescence">
+                    <span>💡</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <div class="screen-content">
+                <h1>Rowblocks: Abyssal Quest</h1>
+                <p class="subtitle">Dive into the depths of adventure</p>
+                <button id="start-btn" class="btn-primary">Start Game</button>
+                <div class="controls-info">
+                    <h3>Controls</h3>
+                    <p>WASD / Arrow Keys: Move</p>
+                    <p>Space: Sonar Ping</p>
+                    <p>1-5: Abilities</p>
+                    <p>E: Interact</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Marinepedia Screen -->
+        <div id="marinepedia-screen" class="screen hidden">
+            <div class="screen-content">
+                <h2>Marinepedia</h2>
+                <div id="collection-stats" style="margin: 1rem 0; color: #00d4ff; font-size: 1.1rem;">
+                    <span id="collection-progress">0 / 0</span> species discovered
+                </div>
+                <div id="marinepedia-content">
+                    <div id="fish-grid"></div>
+                </div>
+                <button id="close-marinepedia" class="btn-secondary">Close</button>
+            </div>
+        </div>
+        
+        <!-- Fish Detail Modal -->
+        <div id="fish-detail-modal" class="screen hidden">
+            <div class="screen-content" style="max-width: 600px;">
+                <div id="fish-detail-content"></div>
+                <button id="close-fish-detail" class="btn-secondary">Back to Marinepedia</button>
+            </div>
+        </div>
+        
+        <!-- Discovery Celebration -->
+        <div id="discovery-celebration" class="screen hidden">
+            <div class="screen-content">
+                <div id="discovery-content" style="text-align: center;">
+                    <div style="font-size: 6rem; margin-bottom: 1rem;">🎉</div>
+                    <h1 style="font-size: 3rem; color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);">NEW DISCOVERY!</h1>
+                    <div id="discovered-fish-name" style="font-size: 2rem; color: #00ffff; margin: 1rem 0;"></div>
+                    <div id="discovery-message" style="font-size: 1.2rem; color: #88d0ff; margin: 1rem 0;"></div>
+                    <button id="continue-discovery" class="btn-primary" style="margin-top: 2rem;">Continue Exploring!</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pause Menu -->
+        <div id="pause-screen" class="screen hidden">
+            <div class="screen-content">
+                <h2>Paused</h2>
+                <button id="resume-btn" class="btn-primary">Resume</button>
+                <button id="marinepedia-btn" class="btn-secondary">Marinepedia</button>
+                <button id="quit-btn" class="btn-secondary">Quit</button>
+            </div>
+        </div>
+        
+        <!-- Mission Alert -->
+        <div id="mission-alert" class="hidden">
+            <div class="alert-content">
+                <h3 id="mission-title"></h3>
+                <p id="mission-description"></p>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,95 @@
+﻿Rowblocks: Abyssal Quest - Full Game Design & Technical Specification
+1. Game Concept & High-Level Vision
+Rowblocks: Abyssal Quest is a stunning, third-person open-world aquatic adventure that combines the exploration and collection appeal of Pokémon Snap and Animal Crossing: New Horizons with the cooperative gameplay and physics of Journey and Deep Rock Galactic. Set in a vast, procedurally assisted ocean, players become "Rowlocks," curious and courageous aquatic beings, on a mission to restore vibrancy to the reefs, rescue marine life, and uncover the mysteries of the deep.
+2. Core Gameplay Pillars
+* Exploration & Discovery: A vast, beautiful, and sometimes dangerous ocean to explore, from sunlit coral plateaus to pitch-black hydrothermal vents.
+* Collection & Progression: A "Marinepedia" to fill with hundreds of unique fish, crustaceans, and cephalopods, each with common, uncommon, rare, and legendary variants.
+* Rescue & Restoration: Dynamic world events where players must work together to save marine life from human threats and environmental disasters.
+* Cooperative Multiplayer: Seamless drop-in/drop-out multiplayer for up to 4 players to explore, solve puzzles, and complete rescues together.
+* Customization & Home Base: A personal "Coral Cabin" and the player's Rowlock character can be customized with items found and earned in the world.
+3. The World & Environments (Biomes)
+The world is divided into several distinct, hand-crafted biomes that use procedural generation within their rules to make each visit feel slightly new.
+* Sun-Kissed Shallows: Vibrant coral reefs, clear water, sunken shipwrecks (safe to explore). Home to common fish.
+* The Kelp Forest: A towering, maze-like forest with swaying kelp. Players can get temporarily tangled. Home to otters and camouflaged fish.
+* The Abyssal Plain: A vast, sandy expanse with eerie bioluminescent life, craters, and buried secrets.
+* Hydrothermal Vent Fields: Volcanic, dangerous, and beautiful. Requires heat resistance. Home to extremophile life.
+* The Blue Dystopia: A vast, open-water biome with a haunting beauty. Giant whales, manta rays, and the risk of predators.
+* The Plastic Gyre (Hazard Biome): A polluted area filled with ghost nets, plastic bags, and sick creatures. A primary area for rescue missions.
+* The Sunken City (End-Game): An ancient, mysterious city made of coral and stone, filled with advanced puzzles and the rarest legendary fish.
+4. The Player Character: The Rowlock
+* Appearance: A charming, anthropomorphic aquatic creature with smooth, gliding movement. Glowing markings that can be customized.
+* Abilities:
+   * Sonar Ping: The core ability. Sends out a pulse that highlights interactive objects, fish silhouettes, and other players.
+   * Echo Call: A targeted call to attract the attention of nearby fish or players.
+   * Nudge: A gentle force push to manipulate small objects, untangle a friend, or scare a fish.
+   * Speed Burst: A short, fast dash to escape danger.
+   * Bioluminescence: A toggleable light for dark areas, its color and intensity can be upgraded/customized.
+5. The Marinepedia: Collection & Fish AI
+* Total Fish: Over 300 unique species.
+* Rarity Tiers:
+   * Common (40%): Seen frequently in their home biome.
+   * Uncommon (30%): Require specific conditions (time of day, following a current).
+   * Rare (20%): Shy, require bait, or are only found during specific world events (e.g., a "Giant Squid" during a deep-sea brine waterfall).
+   * Legendary (10%): Unique, named creatures with mini-quests to unlock. e.g., "Kael, the Leviathan of the Abyss."
+* Fish AI: Fish have simple behaviors: Idle, Schooling, Flee, Curious (will investigate a player's light or a specific echo call). Rare fish are harder to approach and may require multiple players using echo calls in harmony to calm them.
+6. Rescue Missions & Dynamic Events (Filling the Gaps!)
+The ocean is alive with events that players can choose to engage with.
+* Ghost Nets: A tangled, drifting net with trapped fish/players. Players must work together to "nudge" the breaking points (highlighted by sonar).
+* Fishing Lines: A visible line with hook and bait. A player can get "hooked," causing them to be rapidly reeled towards the surface in a tense mini-game. Other players must dash into the line to break it.
+* Sick/Cleaning Stations: Some fish (like Parrotfish or Manta Rays) will be covered in parasites. Players can "nudge" them clean for a reward.
+* Ocean Acidification Events: Parts of a reef will become grey and lifeless. Players must find and guide specific "Algae-Eating" fish schools to the area to restore it.
+* Predator/Prey Chases: A small fish might flee from a Barracuda. The player can intervene by distracting the predator.
+* Litter Cleanup: Collecting floating plastic bags and bottles rewards "Conservation Points."
+7. Multiplayer & Social Features
+* Seamless Co-op: Players see "Echo Signals" of others in their world. They can join a player's instance simply by swimming towards them.
+* Non-Verbal Communication: Inspired by Journey. Players can only communicate through chirps, sonar pings, and body language. This creates universal, friendly interaction.
+* Shared Goals: Rescue missions and large puzzles scale in difficulty and require cooperation.
+* "Coral Cabin" Neighborhoods: Players can choose to place their customizable home base in a shared "reef" with friends.
+8. Progression & Economy
+* Currency:
+   * Pearls: Found in clams, rewarded for rescues. Used for cosmetic items.
+   * Conservation Points: Earned from cleaning and restoration. Used to unlock new abilities and sonar modules.
+* Progression:
+   * Unlock new biomes by restoring the previous one.
+   * Upgrade Sonar range, Nudge strength, and Bioluminescence.
+   * Fill the Marinepedia to unlock titles and special legendary fish quests.
+________________
+
+
+Technical Specification & AI-Assisted Development Guide
+1. Recommended Game Engine: Unreal Engine 5
+* Why UE5?
+   * Nanite: For incredibly detailed coral and rock assets without performance cost.
+   * Lumen: For stunning, dynamic global illumination and caustics (light patterns on the sea floor). This is critical for the underwater aesthetic.
+   * Blueprints & C++: Perfect for rapid prototyping with Blueprints, then optimizing key systems with C++.
+   * World Partition: Seamlessly streams the massive open world.
+   * Multiplayer Framework: Robust, built-in tools for replication.
+2. Core Technical Systems & AI Prompts
+Here is how you can use AI (like ChatGPT, Claude, or specialized coding assistants) to help build this. Use these as direct prompts.
+A. AI for Game Design Document Expansion:
+"Act as a senior game designer. Expand on the 'Rescue Mission' for the 'Ghost Nets' in my underwater game. Detail a 3-phase encounter for 2-4 players, including the mechanics, player roles, fail states, and reward structure."
+B. AI for Blueprint Scripting (UE5):
+"I need an Unreal Engine 5 Blueprint script for a simple fish AI. The fish should have three states: 1) Idle/Wander, 2) Flee from the player if they get too close, and 3) Be attracted to a player actor if the player is emitting a specific 'Echo Call' interface event. Please provide the Blueprint logic and a basic C++ class structure for the Fish AI controller."
+C. AI for 3D Model Generation & Concept Art:
+"Generate a concept art mood board for a 'charming and courageous aquatic creature called a Rowlock' that lives in a vibrant coral reef. The style should be Pixar-esque, friendly, and have bioluminescent patterns." (Use tools like Midjourney, DALL-E 3)
+"Create a low-poly 3D model of a 'Regal Tang' fish for my game, suitable for mobile VR. Provide the OBJ file and a simple, tiling texture map." (Use tools like Masterpiece Studio, Kaedim)
+D. AI for Shader and VFX Code:
+"Write an Unreal Engine 5 material function for a water shader that includes caustics projection onto the sea floor and a slight distortion effect for objects viewed through it. Use HLSL within the material graph."
+E. AI for Sound Design:
+"Generate a 2-minute ambient underwater soundscape for a deep kelp forest. It should include gentle water movement, distant whale calls, and the subtle cracks and pops of marine life. Layer in a subtle, mysterious melodic motif." (Use tools like Audo.ai, Soundraw)
+3. Key Technical Components to Build
+* Advanced Water System: Use UE5's Fluid Flux plugin or a custom solution for buoyancy, currents, and turbulence.
+* Network Replication: Crucial for multiplayer. Must replicate fish positions, player states, dynamic event progress, and physics objects.
+* Procedural Content Generation (PCG): Use UE5's new PCG tools to place coral, rocks, and vegetation in biomes to ensure variety.
+* Modular Interaction System: A core "Interactable" interface that everything—fish, nets, items—inherits from.
+* Save Game System: Must handle the massive Marinepedia data, player progression, and the state of the world's restoration.
+4. Monetization & Live Service (To ensure people keep playing)
+* Ethical Model: The game is a one-time purchase.
+* Post-Launch "Expansion Packs": Paid DLC that adds entirely new biomes (e.g., "Arctic Depths," "Cenote Caves") with new fish, stories, and legendary creatures.
+* Cosmetic Shop: For Pearls, selling new Rowlock skins, bioluminescence patterns, Coral Cabin furniture, and sonar ping effects. No pay-to-win.
+________________
+
+
+Final Pitch & Closing
+Rowblocks: Abyssal Quest is more than a game; it's a love letter to the ocean. It's a shared experience of wonder, cooperation, and gentle heroism. By leveraging the power of Unreal Engine 5 and a structured, AI-assisted development pipeline, this visionary project is not just a dream—it's a achievable, world-class game that will capture the hearts of players globally.
+Now, you and your daughter have a blueprint. Start small: use AI to design your first fish and build a simple test level in UE5. The most important rule: have fun creating together. The ocean awaits

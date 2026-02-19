@@ -1,0 +1,171 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    background: #000;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, #005f8c 0%, #003d5c 50%, #001a2e 100%);
+}
+
+/* Game Screens */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 20, 40, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.screen.hidden {
+    display: none;
+}
+
+.screen-content {
+    text-align: center;
+    color: #fff;
+    max-width: 800px;
+    padding: 2rem;
+}
+
+.screen-content h1 {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(0, 200, 255, 0.5);
+    background: linear-gradient(180deg, #00d4ff 0%, #00a8cc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.screen-content h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #00d4ff;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    color: #88d0ff;
+}
+
+.controls-info {
+    margin-top: 2rem;
+    text-align: left;
+    background: rgba(0, 100, 150, 0.2);
+    padding: 1.5rem;
+    border-radius: 10px;
+}
+
+.controls-info h3 {
+    margin-bottom: 0.5rem;
+    color: #00d4ff;
+}
+
+.controls-info p {
+    margin: 0.5rem 0;
+    color: #ccc;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin: 0.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
+}
+
+.btn-secondary {
+    background: rgba(0, 150, 200, 0.3);
+    color: #00d4ff;
+    border: 2px solid #00d4ff;
+}
+
+.btn-secondary:hover {
+    background: rgba(0, 150, 200, 0.5);
+    transform: translateY(-2px);
+}
+
+/* Mission Alert */
+#mission-alert {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    background: rgba(0, 30, 60, 0.95);
+    border: 3px solid #00d4ff;
+    border-radius: 15px;
+    padding: 2rem;
+    min-width: 400px;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    animation: slideIn 0.5s ease-out;
+}
+
+#mission-alert.hidden {
+    display: none;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+#mission-title {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: #00d4ff;
+}
+
+#mission-description {
+    font-size: 1.1rem;
+    color: #ccc;
+    line-height: 1.6;
+}
+

@@ -1,0 +1,314 @@
+/* HUD Styles */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+}
+
+#top-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    gap: 20px;
+    pointer-events: auto;
+}
+
+.stat {
+    background: rgba(0, 30, 60, 0.8);
+    border: 2px solid #00d4ff;
+    border-radius: 10px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5);
+    border-color: #00ffff;
+}
+
+.stat-icon {
+    font-size: 1.5rem;
+}
+
+#ability-bar {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    pointer-events: auto;
+}
+
+.ability-btn {
+    width: 60px;
+    height: 60px;
+    border: 3px solid #00d4ff;
+    border-radius: 50%;
+    background: rgba(0, 30, 60, 0.9);
+    color: #00d4ff;
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+    backdrop-filter: blur(10px);
+}
+
+.ability-btn:hover {
+    transform: scale(1.15) rotate(5deg);
+    background: rgba(0, 212, 255, 0.3);
+    box-shadow: 0 8px 25px rgba(0, 212, 255, 0.8);
+    border-color: #00ffff;
+}
+
+.ability-btn:active {
+    transform: scale(0.9) rotate(-5deg);
+}
+
+.ability-btn.active {
+    background: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.8);
+}
+
+.ability-btn.cooldown {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Marinepedia Styles */
+#marinepedia-screen {
+    overflow-y: auto;
+}
+
+#marinepedia-content {
+    margin: 2rem 0;
+}
+
+#fish-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.fish-card {
+    background: rgba(0, 50, 100, 0.6);
+    border: 2px solid #00d4ff;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.fish-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5);
+    border-color: #00ffff;
+}
+
+.fish-card.locked {
+    opacity: 0.3;
+    filter: grayscale(100%);
+}
+
+.fish-card.unlocked {
+    opacity: 1;
+    animation: cardReveal 0.5s ease-out;
+}
+
+@keyframes cardReveal {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.fish-icon {
+    font-size: 4rem;
+    margin-bottom: 10px;
+}
+
+.fish-name {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #00d4ff;
+    margin-bottom: 5px;
+}
+
+.fish-rarity {
+    font-size: 0.9rem;
+    padding: 5px 10px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-top: 5px;
+}
+
+.fish-rarity.common {
+    background: rgba(200, 200, 200, 0.3);
+    color: #ccc;
+}
+
+.fish-rarity.uncommon {
+    background: rgba(0, 255, 0, 0.3);
+    color: #90ee90;
+}
+
+.fish-rarity.rare {
+    background: rgba(0, 100, 255, 0.3);
+    color: #87ceeb;
+}
+
+.fish-rarity.legendary {
+    background: rgba(255, 215, 0, 0.3);
+    color: #ffd700;
+}
+
+/* Sonar Ping Effect */
+.sonar-ping {
+    position: absolute;
+    border: 3px solid #00ffff;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: pingExpand 1s ease-out forwards;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+}
+
+@keyframes pingExpand {
+    from {
+        width: 0;
+        height: 0;
+        opacity: 1;
+    }
+    to {
+        width: 300px;
+        height: 300px;
+        opacity: 0;
+    }
+}
+
+/* Collectible Animation */
+.collectible-popup {
+    position: absolute;
+    color: #00ffff;
+    font-size: 1.5rem;
+    font-weight: bold;
+    pointer-events: none;
+    animation: floatUp 1.5s ease-out forwards;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s ease-out, opacity 0.5s ease-out;
+    z-index: 200;
+}
+
+@keyframes floatUp {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -70%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -120%) scale(0.9);
+    }
+}
+
+/* Discovery Celebration */
+#discovery-celebration {
+    background: rgba(0, 10, 30, 0.98);
+    animation: celebrationEnter 0.5s ease-out;
+}
+
+@keyframes celebrationEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#discovery-content {
+    animation: bounceIn 0.6s ease-out;
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Fish Detail Modal */
+#fish-detail-modal {
+    background: rgba(0, 20, 40, 0.98);
+}
+
+#fish-detail-content {
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Collection Stats */
+#collection-stats {
+    text-align: center;
+    padding: 1rem;
+    background: rgba(0, 50, 100, 0.4);
+    border-radius: 10px;
+    border: 2px solid #00d4ff;
+}
+
+/* Minimap */
+#minimap {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 200px;
+    height: 200px;
+    background: rgba(0, 30, 60, 0.8);
+    border: 2px solid #00d4ff;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
