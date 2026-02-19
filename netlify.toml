@@ -9,8 +9,3 @@
 
 [build.environment]
   NODE_VERSION = "18"
-
-[[redirects]]
-  from = "/"
-  to = "/index-3d.html"
-  status = 200
