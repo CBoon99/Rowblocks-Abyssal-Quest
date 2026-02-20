@@ -11,15 +11,27 @@ const initGame = async () => {
     const loadingEl = document.getElementById('loading');
     const canvasContainer = document.getElementById('canvas-container');
     
+    console.log('🚀 Starting game initialization...');
+    console.log('Loading element:', loadingEl);
+    console.log('Canvas container:', canvasContainer);
+    
     if (!canvasContainer) {
-        console.error('Canvas container not found!');
+        console.error('❌ Canvas container not found!');
+        if (loadingEl) {
+            loadingEl.innerHTML = '<p style="color: #ff0000;">Error: Canvas container not found!</p>';
+        }
         return;
     }
     
     try {
+        console.log('📦 Creating Game instance...');
         // Initialize game
         const game = new Game(canvasContainer);
+        
+        console.log('🔧 Initializing game systems...');
         await game.init();
+        
+        console.log('✅ Game systems initialized successfully');
         
         // Initialize UI systems
         const uiManager = new UIManager(game);
@@ -130,12 +142,21 @@ const initGame = async () => {
             }
         });
         
-        // Update HUD in game loop
+        // Update HUD in game loop (only when game is running)
+        let hudAnimationId: number | null = null;
         const updateHUD = () => {
-            if (game.isRunning) {
-                gameHUD.update();
+            try {
+                if (game.isRunning) {
+                    gameHUD.update();
+                }
+                hudAnimationId = requestAnimationFrame(updateHUD);
+            } catch (error) {
+                console.error('HUD update error:', error);
+                // Stop the loop on error
+                if (hudAnimationId !== null) {
+                    cancelAnimationFrame(hudAnimationId);
+                }
             }
-            requestAnimationFrame(updateHUD);
         };
         updateHUD();
         
@@ -175,12 +196,42 @@ const initGame = async () => {
         console.log('Game object:', game);
         console.log('Level system:', game.getLevelSystem());
         console.log('Available levels:', game.getLevelSystem().getAllLevels());
+        
+        // Hide loading screen on success
+        if (loadingEl) {
+            loadingEl.classList.add('hidden');
+            console.log('✅ Loading screen hidden');
+        }
+        
+        // Verify canvas is visible
+        const canvas = canvasContainer.querySelector('canvas');
+        if (canvas) {
+            console.log('✅ Canvas found:', canvas.width, 'x', canvas.height);
+        } else {
+            console.warn('⚠️ Canvas not found in container!');
+        }
     } catch (error) {
         console.error('❌ Failed to initialize game:', error);
+        console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+        console.error('Error message:', error instanceof Error ? error.message : String(error));
         console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        
+        // Show error to user
         if (loadingEl) {
-            loadingEl.innerHTML = '<p style="color: #ff0000;">Failed to load game. Check console for details.</p>';
+            loadingEl.innerHTML = `
+                <div style="color: #ff0000; text-align: center; padding: 2rem;">
+                    <h2>❌ Failed to Load Game</h2>
+                    <p>Error: ${error instanceof Error ? error.message : String(error)}</p>
+                    <p style="font-size: 0.9rem; margin-top: 1rem;">Check browser console (F12) for details.</p>
+                    <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #00d4ff; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold;">
+                        Reload Page
+                    </button>
+                </div>
+            `;
         }
+        
+        // Also show alert for immediate feedback
+        alert(`Game failed to load: ${error instanceof Error ? error.message : String(error)}\n\nCheck console (F12) for details.`);
     }
 };
 

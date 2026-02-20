@@ -92,14 +92,26 @@ export class BlockPuzzleSystem {
     }
     
     async init(): Promise<void> {
-        // Setup mouse interaction
-        document.addEventListener('click', (e) => this.onClick(e));
-        document.addEventListener('keydown', (e) => this.onKeyDown(e));
-        
-        // If level system is set, it will load blocks via loadLevelBlocks
-        // Otherwise create default grid
-        if (!this.levelSystem) {
-            this.createPuzzleGrid();
+        console.log('🧩 BlockPuzzleSystem.init() started');
+        try {
+            // Setup mouse interaction
+            console.log('🖱️ Setting up mouse/keyboard interactions...');
+            document.addEventListener('click', (e) => this.onClick(e));
+            document.addEventListener('keydown', (e) => this.onKeyDown(e));
+            
+            // If level system is set, it will load blocks via loadLevelBlocks
+            // Otherwise create default grid
+            if (!this.levelSystem) {
+                console.log('📦 No level system, creating default grid...');
+                this.createPuzzleGrid();
+            } else {
+                console.log('✅ Level system connected, blocks will load when level starts');
+            }
+            
+            console.log('✅ BlockPuzzleSystem initialized');
+        } catch (error) {
+            console.error('❌ BlockPuzzleSystem initialization failed:', error);
+            throw error;
         }
     }
     

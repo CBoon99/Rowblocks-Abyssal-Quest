@@ -40,17 +40,32 @@ export class Scene3D {
     }
     
     async init(): Promise<void> {
-        // Initialize water caustics
-        this.waterCaustics = new WaterCaustics();
-        
-        // Create ocean floor
-        await this.createOceanFloor();
-        
-        // Create bioluminescent particles
-        this.createParticles();
-        
-        // Create point lights for bioluminescence
-        this.createBioluminescentLights();
+        console.log('🌊 Scene3D.init() started');
+        try {
+            // Initialize water caustics
+            console.log('💧 Initializing water caustics...');
+            this.waterCaustics = new WaterCaustics();
+            
+            // Create ocean floor
+            console.log('🏔️ Creating ocean floor...');
+            await this.createOceanFloor();
+            console.log('✅ Ocean floor created');
+            
+            // Create bioluminescent particles
+            console.log('✨ Creating particles...');
+            this.createParticles();
+            console.log('✅ Particles created');
+            
+            // Create point lights for bioluminescence
+            console.log('💡 Creating lights...');
+            this.createBioluminescentLights();
+            console.log('✅ Lights created');
+            
+            console.log('✅ Scene3D initialized successfully');
+        } catch (error) {
+            console.error('❌ Scene3D initialization failed:', error);
+            throw error;
+        }
     }
     
     private async createOceanFloor(): Promise<void> {

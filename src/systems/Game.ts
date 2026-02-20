@@ -29,24 +29,56 @@ export class Game {
     }
     
     constructor(private container: HTMLElement) {
+        console.log('🎮 Game constructor started');
+        console.log('📦 Container:', container);
+        
         // Create renderer
-        this.renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: true,
-            powerPreference: 'high-performance'
-        });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.2;
+        console.log('🎨 Creating WebGL renderer...');
+        try {
+            this.renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true,
+                powerPreference: 'high-performance'
+            });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+            this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            this.renderer.toneMappingExposure = 1.2;
+            
+            // Enable WebXR
+            this.renderer.xr.enabled = true;
+            
+            console.log('✅ Renderer created:', {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                canvas: this.renderer.domElement
+            });
+        } catch (error) {
+            console.error('❌ Failed to create renderer:', error);
+            throw error;
+        }
         
-        // Enable WebXR
-        this.renderer.xr.enabled = true;
-        
-        container.appendChild(this.renderer.domElement);
+        // Append renderer to container
+        console.log('📺 Appending renderer to container...');
+        try {
+            container.appendChild(this.renderer.domElement);
+            console.log('✅ Renderer appended. Canvas:', this.renderer.domElement);
+            
+            // Verify canvas is in DOM
+            const canvas = container.querySelector('canvas');
+            if (canvas) {
+                console.log('✅ Canvas verified in DOM:', canvas.width, 'x', canvas.height);
+            } else {
+                console.error('❌ Canvas not found after append!');
+                throw new Error('Canvas not found in DOM after append');
+            }
+        } catch (error) {
+            console.error('❌ Failed to append renderer:', error);
+            throw error;
+        }
         
         // Create scene
         this.scene = new THREE.Scene();
@@ -85,53 +117,88 @@ export class Game {
     }
     
     async init(): Promise<void> {
+        console.log('🎮 Game.init() started');
         try {
             // Initialize scene
+            console.log('🌊 Initializing Scene3D...');
             await this.scene3D.init();
+            console.log('✅ Scene3D initialized');
             
             // Initialize audio (with error handling)
+            console.log('🔊 Initializing AudioManager...');
             try {
                 await this.audioManager.init();
+                console.log('✅ AudioManager initialized');
             } catch (error) {
-                console.warn('Audio initialization failed, continuing without audio:', error);
+                console.warn('⚠️ Audio initialization failed, continuing without audio:', error);
             }
             
             // Initialize block puzzle system
+            console.log('🧩 Initializing BlockPuzzleSystem...');
             await this.blockPuzzleSystem.init();
+            console.log('✅ BlockPuzzleSystem initialized');
             
             // Connect systems
+            console.log('🔗 Connecting systems...');
             this.blockPuzzleSystem.setAudioManager(this.audioManager);
             this.blockPuzzleSystem.setLevelSystem(this.levelSystem);
             this.blockPuzzleSystem.setUpgradeSystem(this.upgradeSystem);
+            console.log('✅ Systems connected');
             
-            console.log('Game systems initialized');
+            // Verify renderer is ready
+            if (!this.renderer.domElement) {
+                throw new Error('Renderer canvas element is missing!');
+            }
+            
+            // Test render to verify WebGL context
+            console.log('🎨 Testing WebGL render...');
+            this.renderer.render(this.scene, this.camera);
+            console.log('✅ WebGL render test successful');
+            
+            console.log('✅ Game systems initialized successfully');
         } catch (error) {
-            console.error('Failed to initialize game systems:', error);
+            console.error('❌ Failed to initialize game systems:', error);
+            console.error('Error details:', {
+                name: error instanceof Error ? error.name : 'Unknown',
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
             throw error;
         }
     }
     
     start(): void {
-        if (this._isRunning) return;
+        if (this._isRunning) {
+            console.log('⚠️ Game already running');
+            return;
+        }
+        
+        console.log('▶️ Starting game...');
         
         // Start level 1 if no level selected
         const currentLevel = this.levelSystem.getCurrentLevel();
         if (!currentLevel) {
-            console.log('No level selected, starting level 1');
+            console.log('📋 No level selected, starting level 1');
             this.levelSystem.startLevel(1);
         }
         
         // Ensure blocks are loaded for the current level
         const level = this.levelSystem.getCurrentLevel();
         if (level) {
-            console.log(`Starting game with level ${level.id}: ${level.name}`);
+            console.log(`🎯 Starting game with level ${level.id}: ${level.name}`);
             // Always reload blocks to ensure they're created
-            console.log('Loading blocks for current level...');
+            console.log('📦 Loading blocks for current level...');
             this.blockPuzzleSystem.loadLevelBlocks();
             const blockCount = (this.blockPuzzleSystem as any).blocks?.length || 0;
-            console.log(`Blocks loaded: ${blockCount}`);
+            console.log(`✅ Blocks loaded: ${blockCount}`);
         } else {
-            console.error('Cannot start game: No level available');
+            console.error('❌ Cannot start game: No level available');
+            return;
+        }
+        
+        // Verify renderer is ready
+        if (!this.renderer || !this.renderer.domElement) {
+            console.error('❌ Renderer not ready!');
             return;
         }
         
@@ -142,12 +209,13 @@ export class Game {
         try {
             this.audioManager.playAmbient();
         } catch (e) {
-            console.warn('Could not play ambient audio:', e);
+            console.warn('⚠️ Could not play ambient audio:', e);
         }
         
         // Start animation loop
-        console.log('Starting animation loop...');
+        console.log('🎬 Starting animation loop...');
         this.animate();
+        console.log('✅ Animation loop started');
     }
     
     stop(): void {
@@ -171,36 +239,70 @@ export class Game {
     
     private animate = (): void => {
         if (!this._isRunning) {
-            console.warn('Animation loop stopped: _isRunning is false');
-            return;
+            return; // Don't log warnings - just stop
         }
         
-        this.animationId = requestAnimationFrame(this.animate);
-        
-        const currentTime = performance.now();
-        const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
-        this.lastTime = currentTime;
-        
-        // Update physics
-        this.physicsWorld.update(deltaTime);
-        
-        // Update systems
-        this.swimmerController.update(deltaTime);
-        this.blockPuzzleSystem.update(deltaTime);
-        this.scene3D.update(deltaTime);
-        this.audioManager.update(deltaTime);
-        
-        // Update post-processing
-        if (this.postProcessing) {
-            const lightPos = this.scene3D.getLightPosition();
-            this.postProcessing.update(deltaTime, lightPos);
-        }
-        
-        // Render with post-processing
-        if (this.postProcessing) {
-            this.postProcessing.render();
-        } else {
-            this.renderer.render(this.scene, this.camera);
+        try {
+            this.animationId = requestAnimationFrame(this.animate);
+            
+            const currentTime = performance.now();
+            const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
+            this.lastTime = currentTime;
+            
+            // Update physics
+            this.physicsWorld.update(deltaTime);
+            
+            // Update systems (with error handling)
+            try {
+                this.swimmerController.update(deltaTime);
+            } catch (e) {
+                console.error('SwimmerController update error:', e);
+            }
+            
+            try {
+                this.blockPuzzleSystem.update(deltaTime);
+            } catch (e) {
+                console.error('BlockPuzzleSystem update error:', e);
+            }
+            
+            try {
+                this.scene3D.update(deltaTime);
+            } catch (e) {
+                console.error('Scene3D update error:', e);
+            }
+            
+            try {
+                this.audioManager.update(deltaTime);
+            } catch (e) {
+                // Audio errors are common, don't spam console
+            }
+            
+            // Update post-processing
+            if (this.postProcessing) {
+                try {
+                    const lightPos = this.scene3D.getLightPosition();
+                    this.postProcessing.update(deltaTime, lightPos);
+                } catch (e) {
+                    console.error('PostProcessing update error:', e);
+                }
+            }
+            
+            // Render with post-processing
+            try {
+                if (this.postProcessing) {
+                    this.postProcessing.render();
+                } else {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            } catch (e) {
+                console.error('Render error:', e);
+                // Stop animation loop on render errors
+                this.stop();
+            }
+        } catch (error) {
+            console.error('Animation loop error:', error);
+            // Stop the loop on critical errors
+            this.stop();
         }
     };
     

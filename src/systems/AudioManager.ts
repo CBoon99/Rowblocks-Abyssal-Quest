@@ -399,16 +399,8 @@ export class AudioManager {
     
     private updateListenerPosition(): void {
         // Update listener position to match camera
-        // This is handled automatically by Three.js, but we can add custom updates here
-        const update = () => {
-            if (this.listener && this.camera) {
-                // Listener position updates automatically with camera
-                // But we can apply underwater filter to all sounds
-                this.applyUnderwaterFilter();
-            }
-            requestAnimationFrame(update);
-        };
-        update();
+        // This is handled automatically by Three.js
+        // No need for a separate animation loop - this will be called from Game.update()
     }
     
     private applyUnderwaterFilter(): void {
