@@ -61,6 +61,18 @@ export class Scene3D {
             this.createBioluminescentLights();
             console.log('✅ Lights created');
             
+            // DEBUG: Add visible test cube to verify rendering works
+            console.log('🔴 Adding debug cube...');
+            const testCubeGeometry = new THREE.BoxGeometry(4, 4, 4);
+            const testCubeMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                wireframe: true
+            });
+            const testCube = new THREE.Mesh(testCubeGeometry, testCubeMaterial);
+            testCube.position.set(0, 2, 0);
+            this.scene.add(testCube);
+            console.log('✅ DEBUG CUBE ADDED at (0, 2, 0) – should be visible if rendering works');
+            
             console.log('✅ Scene3D initialized successfully');
         } catch (error) {
             console.error('❌ Scene3D initialization failed:', error);

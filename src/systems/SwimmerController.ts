@@ -140,10 +140,13 @@ export class SwimmerController {
     
     update(deltaTime: number): void {
         // Apply camera rotation from yaw/pitch objects
+        // FIX: Use quaternion.setFromEuler, not rotation.setFromEuler
         this.euler.set(0, 0, 0, 'YXZ');
         this.euler.y = this.yawObject.rotation.y;
         this.euler.x = this.pitchObject.rotation.x;
-        this.camera.rotation.setFromEuler(this.euler);
+        
+        // CRITICAL FIX: Use quaternion for rotation to avoid gimbal lock
+        this.camera.quaternion.setFromEuler(this.euler);
         
         // Update camera position from physics body
         this.camera.position.copy(this.physicsBody.position as any);
@@ -152,7 +155,8 @@ export class SwimmerController {
         // Calculate movement direction based on camera rotation
         this.velocity.set(0, 0, 0);
         this.direction.set(0, 0, -1);
-        this.direction.applyEuler(this.camera.rotation);
+        // Use quaternion for direction calculation
+        this.direction.applyQuaternion(this.camera.quaternion);
         
         if (this.moveForward) {
             this.velocity.add(this.direction.clone().multiplyScalar(this.SPEED));
@@ -163,7 +167,7 @@ export class SwimmerController {
         
         // Strafe - use camera's right vector
         const right = new THREE.Vector3(1, 0, 0);
-        right.applyEuler(this.camera.rotation);
+        right.applyQuaternion(this.camera.quaternion);
         
         if (this.moveLeft) {
             this.velocity.add(right.clone().multiplyScalar(-this.SPEED));

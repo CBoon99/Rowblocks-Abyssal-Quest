@@ -24,12 +24,14 @@ const initGame = async () => {
     }
     
     try {
-        console.log('📦 Creating Game instance...');
+        console.log('📦 Init step 1: Creating Game instance...');
         // Initialize game
         const game = new Game(canvasContainer);
+        console.log('✅ Init step 1 complete: Game instance created');
         
-        console.log('🔧 Initializing game systems...');
+        console.log('🔧 Init step 2: Initializing game systems...');
         await game.init();
+        console.log('✅ Init step 2 complete: Game systems initialized');
         
         console.log('✅ Game systems initialized successfully');
         
@@ -183,16 +185,43 @@ const initGame = async () => {
         // Make game accessible globally for debugging
         (window as any).game = game;
         
-        // Connect the HTML "Dive In" button if it exists
-        const startBtn = document.getElementById('start-btn');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                mainMenuUI.hide();
-                levelSelectUI.show();
-            });
-        }
-        
-        console.log('✅ Game initialized successfully!');
+                // Connect the HTML "Dive In" button if it exists
+                const startBtn = document.getElementById('start-btn');
+                if (startBtn) {
+                    startBtn.addEventListener('click', () => {
+                        mainMenuUI.hide();
+                        levelSelectUI.show();
+                    });
+                }
+                
+                // DEBUG: Connect force start button
+                const debugStartBtn = document.getElementById('debug-start');
+                if (debugStartBtn) {
+                    debugStartBtn.style.display = 'block';
+                    debugStartBtn.addEventListener('click', () => {
+                        console.log('🔧 DEBUG: Force start button clicked');
+                        // Hide loading screen
+                        if (loadingEl) {
+                            loadingEl.classList.add('hidden');
+                        }
+                        // Start level 1 if none selected
+                        const levelSystem = game.getLevelSystem();
+                        if (!levelSystem.getCurrentLevel()) {
+                            levelSystem.startLevel(1);
+                        }
+                        // Start game
+                        game.start();
+                        // Show canvas
+                        if (canvasContainer) {
+                            canvasContainer.style.display = 'block';
+                        }
+                        // Show HUD
+                        gameHUD.show();
+                    });
+                    console.log('✅ Debug start button connected');
+                }
+                
+                console.log('✅ Game initialized successfully!');
         console.log('Game object:', game);
         console.log('Level system:', game.getLevelSystem());
         console.log('Available levels:', game.getLevelSystem().getAllLevels());

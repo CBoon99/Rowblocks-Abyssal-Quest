@@ -50,16 +50,20 @@ export class BlockPuzzleSystem {
     loadLevelBlocks(): void {
         if (!this.levelSystem) {
             console.warn('BlockPuzzleSystem: No level system set');
+            // Create test blocks as fallback
+            this.createTestBlocks();
             return;
         }
         
         const level = this.levelSystem.getCurrentLevel();
         if (!level) {
             console.warn('BlockPuzzleSystem: No current level');
+            // Create test blocks as fallback
+            this.createTestBlocks();
             return;
         }
         
-        console.log(`Loading blocks for level ${level.id}: ${level.name}`);
+        console.log(`📦 Loading blocks for level ${level.id}: ${level.name}`);
         
         // Clear existing blocks
         this.blocks.forEach(block => {
@@ -72,23 +76,66 @@ export class BlockPuzzleSystem {
         this.gridSize = level.gridSize;
         
         // Create blocks from level data
-        level.blocks.forEach(blockData => {
-            // Map level block types to BlockPuzzleSystem types
-            let blockType: Block['type'] = 'rock';
-            if (blockData.type === 'start' || blockData.type === 'exit') {
-                blockType = 'glow'; // Special blocks are glowing
-            } else if (blockData.type === 'gem') {
-                blockType = 'gem';
-            } else if (blockData.type === 'coral') {
-                blockType = 'coral';
-            } else {
-                blockType = blockData.type as Block['type'];
+        if (level.blocks && level.blocks.length > 0) {
+            level.blocks.forEach(blockData => {
+                // Map level block types to BlockPuzzleSystem types
+                let blockType: Block['type'] = 'rock';
+                if (blockData.type === 'start' || blockData.type === 'exit') {
+                    blockType = 'glow'; // Special blocks are glowing
+                } else if (blockData.type === 'gem') {
+                    blockType = 'gem';
+                } else if (blockData.type === 'coral') {
+                    blockType = 'coral';
+                } else {
+                    blockType = blockData.type as Block['type'];
+                }
+                
+                this.createBlock(blockData.x, blockData.y, blockData.z, blockType);
+            });
+        } else {
+            console.warn('⚠️ Level has no blocks defined, creating test blocks');
+            this.createTestBlocks();
+        }
+        
+        const blockPositions = this.blocks.map(b => `(${b.gridX},${b.gridY},${b.gridZ})`).join(', ');
+        console.log(`✅ Created ${this.blocks.length} blocks at positions: ${blockPositions}`);
+        
+        // Ensure all blocks are in scene (they should be added in createBlock, but verify)
+        this.blocks.forEach(block => {
+            if (!this.scene.children.includes(block.mesh)) {
+                console.log(`⚠️ Block mesh not in scene, adding: (${block.gridX}, ${block.gridY}, ${block.gridZ})`);
+                this.scene.add(block.mesh);
             }
-            
-            this.createBlock(blockData.x, blockData.y, blockData.z, blockType);
+        });
+    }
+    
+    /**
+     * Create test blocks as fallback if no level data exists
+     */
+    private createTestBlocks(): void {
+        console.log('🧪 Creating test blocks (fallback)...');
+        
+        // Clear existing blocks
+        this.blocks.forEach(block => {
+            this.scene.remove(block.mesh);
+            this.physicsWorld.removeBody(block.body);
+        });
+        this.blocks = [];
+        
+        // Create 5 test blocks in a simple pattern
+        const testPositions = [
+            { x: 0, y: 0, z: 0, type: 'glow' as Block['type'] },
+            { x: 2, y: 0, z: 0, type: 'gem' as Block['type'] },
+            { x: -2, y: 0, z: 0, type: 'coral' as Block['type'] },
+            { x: 0, y: 0, z: 2, type: 'rock' as Block['type'] },
+            { x: 0, y: 0, z: -2, type: 'rock' as Block['type'] }
+        ];
+        
+        testPositions.forEach(pos => {
+            this.createBlock(pos.x, pos.y, pos.z, pos.type);
         });
         
-        console.log(`Created ${this.blocks.length} blocks`);
+        console.log(`✅ Created ${this.blocks.length} test blocks`);
     }
     
     async init(): Promise<void> {

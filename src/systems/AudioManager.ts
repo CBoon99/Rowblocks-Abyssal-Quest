@@ -58,7 +58,7 @@ export class AudioManager {
     }
     
     async init(): Promise<void> {
-        // Ensure audio context is initialized
+        // Ensure audio context is initialized (but don't start audio yet)
         if (!this.audioContext) {
             this.initAudioContext();
         }
@@ -72,8 +72,8 @@ export class AudioManager {
             }
         }
         
-        // Initialize ambient underwater sound
-        // Using procedural audio generation since we don't have audio files yet
+        // DON'T start audio here - wait for user gesture
+        // Just create the sound objects (they won't play until resumed)
         this.ambientSound = this.createProceduralAmbient();
         
         // Initialize sound effects
@@ -81,6 +81,31 @@ export class AudioManager {
         
         // Set up audio listener position updates
         this.updateListenerPosition();
+    }
+    
+    /**
+     * Start audio after user gesture (call on button click or game start)
+     */
+    startAudio(): void {
+        if (!this.audioContext) {
+            this.initAudioContext();
+        }
+        
+        if (this.audioContext) {
+            // Resume audio context if suspended (required by browser autoplay policy)
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume().then(() => {
+                    console.log('✅ Audio context resumed');
+                    // Now start procedural ambient
+                    this.generateProceduralAmbient();
+                }).catch(err => {
+                    console.warn('⚠️ Audio resume failed:', err);
+                });
+            } else {
+                // Already active, just start ambient
+                this.generateProceduralAmbient();
+            }
+        }
     }
     
     private createProceduralAmbient(): Howl | null {
@@ -107,30 +132,45 @@ export class AudioManager {
     }
     
     private generateProceduralAmbient(): void {
-        if (!this.audioContext) return;
+        if (!this.audioContext) {
+            console.warn('⚠️ AudioContext not available for procedural ambient');
+            return;
+        }
         
-        // Create oscillator for ambient drone
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
-        const filter = this.audioContext.createBiquadFilter();
+        // Check if audio context is suspended (browser autoplay policy)
+        if (this.audioContext.state === 'suspended') {
+            console.log('⏸️ Audio context suspended - will resume on user gesture');
+            return; // Don't start until resumed
+        }
         
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 60; // Low frequency drone
-        
-        filter.type = 'lowpass';
-        filter.frequency.value = 500;
-        
-        gainNode.gain.value = 0.1;
-        
-        oscillator.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(this.audioContext.destination);
-        
-        oscillator.start();
-        
-        // Store reference for cleanup
-        (this as any)._ambientOscillator = oscillator;
-        (this as any)._ambientGain = gainNode;
+        try {
+            // Create oscillator for ambient drone
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            const filter = this.audioContext.createBiquadFilter();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 60; // Low frequency drone
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 500;
+            
+            gainNode.gain.value = 0.1;
+            
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            oscillator.start();
+            
+            // Store reference for cleanup
+            (this as any)._ambientOscillator = oscillator;
+            (this as any)._ambientGain = gainNode;
+            
+            console.log('✅ Procedural ambient sound started');
+        } catch (error) {
+            console.warn('⚠️ Failed to generate procedural ambient:', error);
+        }
     }
     
     private initSoundEffects(): void {

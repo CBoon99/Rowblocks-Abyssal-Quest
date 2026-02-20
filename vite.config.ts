@@ -16,6 +16,9 @@ const renameIndexPlugin = () => {
           const content = readFileSync(oldPath, 'utf-8');
           writeFileSync(newPath, content);
           console.log('✅ Renamed index-3d.html to index.html for Netlify');
+          console.log('📦 Build output verified: index.html created successfully');
+        } else {
+          console.warn('⚠️ index-3d.html not found in dist, cannot rename');
         }
       } catch (error) {
         console.warn('Could not rename index file:', error);
@@ -27,6 +30,7 @@ const renameIndexPlugin = () => {
 export default defineConfig({
   root: '.',
   publicDir: 'public',
+  base: '/', // Ensure base path for Netlify
   server: {
     port: 3000,
     open: '/index-3d.html'

@@ -186,15 +186,28 @@ export class Game {
         const level = this.levelSystem.getCurrentLevel();
         if (level) {
             console.log(`🎯 Starting game with level ${level.id}: ${level.name}`);
-            // Always reload blocks to ensure they're created
-            console.log('📦 Loading blocks for current level...');
-            this.blockPuzzleSystem.loadLevelBlocks();
-            const blockCount = (this.blockPuzzleSystem as any).blocks?.length || 0;
-            console.log(`✅ Blocks loaded: ${blockCount}`);
         } else {
-            console.error('❌ Cannot start game: No level available');
-            return;
+            console.warn('⚠️ No level selected, will create test blocks');
         }
+        
+        // ALWAYS reload blocks to ensure they're created and added to scene
+        console.log('📦 Loading blocks for current level...');
+        this.blockPuzzleSystem.loadLevelBlocks();
+        const blockCount = (this.blockPuzzleSystem as any).blocks?.length || 0;
+        console.log(`✅ Game.start() called. Blocks loaded: ${blockCount}`);
+        
+        // Verify all blocks are in scene
+        const blocksInScene = this.scene.children.filter(child => 
+            child instanceof THREE.Mesh && 
+            (this.blockPuzzleSystem as any).blocks?.some((b: any) => b.mesh === child)
+        ).length;
+        console.log(`🔍 Blocks verified in scene: ${blocksInScene} / ${blockCount}`);
+        
+        // Force camera to look at origin (where blocks are)
+        console.log('📷 Setting camera to look at origin (0, 0, 0)...');
+        this.camera.lookAt(0, 0, 0);
+        console.log(`📷 Camera position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
+        console.log(`📷 Camera rotation: (${this.camera.rotation.x.toFixed(2)}, ${this.camera.rotation.y.toFixed(2)}, ${this.camera.rotation.z.toFixed(2)})`);
         
         // Verify renderer is ready
         if (!this.renderer || !this.renderer.domElement) {
@@ -205,8 +218,9 @@ export class Game {
         this._isRunning = true;
         this.lastTime = performance.now();
         
-        // Start audio
+        // Start audio (after user gesture - game.start() is called on user action)
         try {
+            this.audioManager.startAudio(); // This will resume context if needed
             this.audioManager.playAmbient();
         } catch (e) {
             console.warn('⚠️ Could not play ambient audio:', e);
@@ -256,7 +270,12 @@ export class Game {
             try {
                 this.swimmerController.update(deltaTime);
             } catch (e) {
-                console.error('SwimmerController update error:', e);
+                // Only log once to avoid spam (3000+ errors)
+                if (!(this as any)._swimmerErrorLogged) {
+                    console.error('❌ SwimmerController update error:', e);
+                    (this as any)._swimmerErrorLogged = true;
+                }
+                // Don't stop the game loop - continue rendering
             }
             
             try {
