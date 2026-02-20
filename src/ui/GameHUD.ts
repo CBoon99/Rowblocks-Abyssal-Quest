@@ -95,8 +95,107 @@ export class GameHUD {
             </div>
         `;
         
+        // Wire up HUD buttons
+        this.setupButtonListeners();
+        
         // Update move counter color based on remaining moves
         this.updateMoveCounter();
+    }
+    
+    private setupButtonListeners(): void {
+        // Pause button
+        const pauseBtn = document.getElementById('btn-pause');
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', () => {
+                const game = (window as any).game;
+                if (game && game.isRunning) {
+                    game.stop();
+                    // Show pause menu or level select
+                    const levelSelectUI = (window as any).levelSelectUI;
+                    if (levelSelectUI) {
+                        levelSelectUI.show();
+                    }
+                }
+            });
+        }
+        
+        // Undo button
+        const undoBtn = document.getElementById('btn-undo');
+        if (undoBtn) {
+            undoBtn.addEventListener('click', () => {
+                const game = (window as any).game;
+                if (game) {
+                    const blockSystem = game.getBlockPuzzleSystem();
+                    if (blockSystem && typeof blockSystem.undo === 'function') {
+                        const success = blockSystem.undo();
+                        if (success) {
+                            console.log('✅ Undo successful');
+                        } else {
+                            console.log('⚠️ No moves to undo');
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Hint button
+        const hintBtn = document.getElementById('btn-hint');
+        if (hintBtn) {
+            hintBtn.addEventListener('click', () => {
+                const game = (window as any).game;
+                if (game) {
+                    const blockSystem = game.getBlockPuzzleSystem();
+                    if (blockSystem && typeof blockSystem.showHint === 'function') {
+                        blockSystem.showHint();
+                    } else {
+                        console.log('💡 Hint system not yet implemented');
+                        // Show a simple message
+                        this.showHintMessage('Try sliding rows to create a path!');
+                    }
+                }
+            });
+        }
+        
+        // Menu button
+        const menuBtn = document.getElementById('btn-menu');
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => {
+                const game = (window as any).game;
+                if (game && game.isRunning) {
+                    game.stop();
+                }
+                const levelSelectUI = (window as any).levelSelectUI;
+                if (levelSelectUI) {
+                    levelSelectUI.show();
+                }
+            });
+        }
+    }
+    
+    private showHintMessage(message: string): void {
+        const hintMsg = document.createElement('div');
+        hintMsg.className = 'hint-message';
+        hintMsg.textContent = message;
+        hintMsg.style.position = 'fixed';
+        hintMsg.style.top = '50%';
+        hintMsg.style.left = '50%';
+        hintMsg.style.transform = 'translate(-50%, -50%)';
+        hintMsg.style.zIndex = '10000';
+        hintMsg.style.background = 'rgba(0, 212, 255, 0.95)';
+        hintMsg.style.color = '#fff';
+        hintMsg.style.padding = '20px 40px';
+        hintMsg.style.borderRadius = '10px';
+        hintMsg.style.fontSize = '1.2rem';
+        hintMsg.style.fontWeight = 'bold';
+        hintMsg.style.textAlign = 'center';
+        hintMsg.style.boxShadow = '0 4px 20px rgba(0,0,0,0.5)';
+        hintMsg.style.animation = 'fadeInOut 3s ease-out';
+        
+        document.body.appendChild(hintMsg);
+        
+        setTimeout(() => {
+            hintMsg.remove();
+        }, 3000);
     }
     
     update(): void {
@@ -104,14 +203,43 @@ export class GameHUD {
         const score = this.levelSystem.getScore();
         const currency = this.upgradeSystem.getCurrency();
         const currentLevel = this.levelSystem.getCurrentLevel();
+        const depth = this.game ? Math.round(this.game.getCurrentDepth()) : 0;
+        
+        // Get gems and collected fish count from store
+        const store = useGameStore.getState();
+        const gems = store.gems;
+        const collectedCount = store.collectedFish.length;
         
         const movesEl = document.getElementById('hud-moves');
         const scoreEl = document.getElementById('hud-score');
-        const currencyEl = document.getElementById('hud-currency');
+        const gemsEl = document.getElementById('hud-gems');
+        const collectedEl = document.getElementById('hud-collected');
+        const depthValueEl = document.getElementById('depth-meter-value');
+        const depthFillEl = document.getElementById('depth-meter-fill');
         
         if (movesEl) movesEl.textContent = moves.toString();
         if (scoreEl) scoreEl.textContent = score.toString();
-        if (currencyEl) currencyEl.textContent = currency.toString();
+        if (gemsEl) gemsEl.textContent = gems.toString();
+        if (collectedEl) collectedEl.textContent = collectedCount.toString();
+        
+        // Update depth meter
+        if (depthValueEl) depthValueEl.textContent = `${depth}m`;
+        if (depthFillEl) {
+            const maxDepth = 100; // Max depth for meter
+            const fillPercentage = Math.min(100, (depth / maxDepth) * 100);
+            depthFillEl.style.width = `${fillPercentage}%`;
+            
+            // Color change based on depth
+            if (fillPercentage < 25) {
+                depthFillEl.style.background = 'linear-gradient(90deg, #00ff00, #ffff00)';
+            } else if (fillPercentage < 50) {
+                depthFillEl.style.background = 'linear-gradient(90deg, #ffff00, #ff8800)';
+            } else if (fillPercentage < 75) {
+                depthFillEl.style.background = 'linear-gradient(90deg, #ff8800, #ff0000)';
+            } else {
+                depthFillEl.style.background = 'linear-gradient(90deg, #ff0000, #880000)';
+            }
+        }
         
         this.updateMoveCounter();
     }
@@ -163,20 +291,58 @@ export class GameHUD {
         document.body.appendChild(winScreen);
         
         // Event listeners
-        document.getElementById('btn-next-level')?.addEventListener('click', () => {
-            winScreen.remove();
-            // Trigger next level
-        });
+        const nextLevelBtn = document.getElementById('btn-next-level');
+        if (nextLevelBtn) {
+            nextLevelBtn.addEventListener('click', () => {
+                winScreen.remove();
+                const game = (window as any).game;
+                const levelSystem = game?.getLevelSystem();
+                if (levelSystem) {
+                    const currentLevel = levelSystem.getCurrentLevel();
+                    if (currentLevel) {
+                        const nextLevelId = currentLevel.id + 1;
+                        const levelSelectUI = (window as any).levelSelectUI;
+                        if (levelSelectUI) {
+                            levelSelectUI.selectLevel(nextLevelId);
+                        }
+                    }
+                }
+            });
+        }
         
-        document.getElementById('btn-level-select')?.addEventListener('click', () => {
-            winScreen.remove();
-            // Show level select
-        });
+        const levelSelectBtn = document.getElementById('btn-level-select');
+        if (levelSelectBtn) {
+            levelSelectBtn.addEventListener('click', () => {
+                winScreen.remove();
+                const levelSelectUI = (window as any).levelSelectUI;
+                if (levelSelectUI) {
+                    levelSelectUI.show();
+                }
+            });
+        }
         
-        document.getElementById('btn-retry')?.addEventListener('click', () => {
-            winScreen.remove();
-            // Retry current level
-        });
+        const retryBtn = document.getElementById('btn-retry');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                winScreen.remove();
+                const game = (window as any).game;
+                const levelSystem = game?.getLevelSystem();
+                if (levelSystem) {
+                    const currentLevel = levelSystem.getCurrentLevel();
+                    if (currentLevel) {
+                        // Restart current level
+                        const blockSystem = game?.getBlockPuzzleSystem();
+                        if (blockSystem && typeof blockSystem.loadLevelBlocks === 'function') {
+                            levelSystem.startLevel(currentLevel.id);
+                            blockSystem.loadLevelBlocks();
+                            if (game && !game.isRunning) {
+                                game.start();
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
     
     showLoseScreen(): void {
@@ -195,17 +361,45 @@ export class GameHUD {
         
         document.body.appendChild(loseScreen);
         
-        document.getElementById('btn-retry-lose')?.addEventListener('click', () => {
-            loseScreen.remove();
-        });
+        const retryLoseBtn = document.getElementById('btn-retry-lose');
+        if (retryLoseBtn) {
+            retryLoseBtn.addEventListener('click', () => {
+                loseScreen.remove();
+                const game = (window as any).game;
+                const levelSystem = game?.getLevelSystem();
+                if (levelSystem) {
+                    const currentLevel = levelSystem.getCurrentLevel();
+                    if (currentLevel) {
+                        // Restart current level
+                        const blockSystem = game?.getBlockPuzzleSystem();
+                        if (blockSystem && typeof blockSystem.loadLevelBlocks === 'function') {
+                            levelSystem.startLevel(currentLevel.id);
+                            blockSystem.loadLevelBlocks();
+                            if (game && !game.isRunning) {
+                                game.start();
+                            }
+                        }
+                    }
+                }
+            });
+        }
         
-        document.getElementById('btn-level-select-lose')?.addEventListener('click', () => {
-            loseScreen.remove();
-        });
+        const levelSelectLoseBtn = document.getElementById('btn-level-select-lose');
+        if (levelSelectLoseBtn) {
+            levelSelectLoseBtn.addEventListener('click', () => {
+                loseScreen.remove();
+                const levelSelectUI = (window as any).levelSelectUI;
+                if (levelSelectUI) {
+                    levelSelectUI.show();
+                }
+            });
+        }
     }
     
     show(): void {
         this.container.style.display = 'block';
+        // Re-wire buttons when showing (in case render was called)
+        this.setupButtonListeners();
     }
     
     hide(): void {

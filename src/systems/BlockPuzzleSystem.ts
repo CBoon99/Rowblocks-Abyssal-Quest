@@ -455,6 +455,32 @@ export class BlockPuzzleSystem {
         }
     }
     
+    showHint(): void {
+        // Simple hint: highlight a random row that can be moved
+        // Clear previous hints
+        this.blocks.forEach(block => {
+            if (block.mesh.material instanceof THREE.MeshStandardMaterial) {
+                block.mesh.material.emissive.setHex(0x000000);
+            }
+        });
+        
+        // Find a movable row (simple: just highlight first row)
+        if (this.blocks.length > 0) {
+            const hintBlock = this.blocks[0];
+            if (hintBlock.mesh.material instanceof THREE.MeshStandardMaterial) {
+                hintBlock.mesh.material.emissive.setHex(0x00ffff);
+                hintBlock.mesh.material.emissiveIntensity = 0.5;
+                
+                // Remove hint after 3 seconds
+                setTimeout(() => {
+                    if (hintBlock.mesh.material instanceof THREE.MeshStandardMaterial) {
+                        hintBlock.mesh.material.emissive.setHex(0x000000);
+                    }
+                }, 3000);
+            }
+        }
+    }
+    
     update(deltaTime: number): void {
         // Update block visuals from physics
         this.blocks.forEach(block => {
