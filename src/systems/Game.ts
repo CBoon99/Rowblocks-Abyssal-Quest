@@ -116,6 +116,7 @@ export class Game {
         this.blockPuzzleSystem = new BlockPuzzleSystem(this.scene, this.physicsWorld);
         this.fishSystem = new FishSystem(this.scene, this.physicsWorld);
         this.bubblesSystem = new BubblesSystem(this.scene);
+        this.questSystem = new QuestSystem();
         
         // Initialize post-processing (after renderer is ready)
         this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
@@ -497,11 +498,13 @@ export class Game {
             });
             
             // Update quests
-            this.questSystem.updateQuestProgress('catch_fish', 1);
-            if (fish.type === 'clownfish') {
-                this.questSystem.updateQuestProgress('catch_clownfish', 1);
-            } else if (fish.type === 'angelfish') {
-                this.questSystem.updateQuestProgress('catch_angelfish', 1);
+            if (this.questSystem) {
+                this.questSystem.updateQuestProgress('catch_fish', 1);
+                if (fish.type === 'clownfish') {
+                    this.questSystem.updateQuestProgress('catch_clownfish', 1);
+                } else if (fish.type === 'angelfish') {
+                    this.questSystem.updateQuestProgress('catch_angelfish', 1);
+                }
             }
             
             // Play catch sound
@@ -529,6 +532,7 @@ export class Game {
      * Update quest progress for depth
      */
     updateDepthQuest(): void {
+        if (!this.questSystem) return;
         const depth = this.getCurrentDepth();
         this.questSystem.updateQuestProgress('depth', depth);
     }
