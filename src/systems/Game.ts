@@ -7,6 +7,10 @@ import { AudioManager } from './AudioManager';
 import { PostProcessing } from './PostProcessing';
 import { LevelSystem } from './LevelSystem';
 import { UpgradeSystem } from './UpgradeSystem';
+import { FishSystem } from './FishSystem';
+import { BubblesSystem } from './BubblesSystem';
+import { QuestSystem } from './QuestSystem';
+import { useGameStore } from '../stores/GameStore';
 
 export class Game {
     private renderer: THREE.WebGLRenderer;
