@@ -7,7 +7,7 @@ import { UpgradeShopUI } from './ui/UpgradeShopUI';
 import { MainMenuUI } from './ui/MainMenuUI';
 
 // Initialize game when DOM is ready
-document.addEventListener('DOMContentLoaded', async () => {
+const initGame = async () => {
     const loadingEl = document.getElementById('loading');
     const canvasContainer = document.getElementById('canvas-container');
     
@@ -182,4 +182,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadingEl.innerHTML = '<p style="color: #ff0000;">Failed to load game. Check console for details.</p>';
         }
     }
-});
+};
+
+// Try immediate initialization if DOM is already loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGame);
+} else {
+    // DOM is already loaded
+    initGame();
+}
