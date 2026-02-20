@@ -28,9 +28,10 @@ export class FishSystem {
         console.log('🐟 FishSystem.init() started');
         try {
             // Create initial school of fish with boids flocking
-            // Increased to 25 fish for better flocking behavior
-            this.createFishSchool(25);
+            // Increased to 30 fish for better visibility and flocking behavior
+            this.createFishSchool(30);
             console.log(`✅ Created ${this.fishes.length} fish with boids flocking`);
+            console.log(`🐟 Fish positions: ${this.fishes.slice(0, 3).map(f => `(${f.position.x.toFixed(1)}, ${f.position.y.toFixed(1)}, ${f.position.z.toFixed(1)})`).join(', ')}...`);
         } catch (error) {
             console.error('❌ FishSystem initialization failed:', error);
             throw error;
@@ -47,14 +48,15 @@ export class FishSystem {
             const type = fishTypes[Math.floor(Math.random() * fishTypes.length)];
             const fish = this.createFish(type);
             
-            // Random starting position in a sphere around origin
-            const radius = 20 + Math.random() * 30;
+            // Random starting position closer to origin (where blocks are)
+            // Position fish in a sphere around origin, but closer (5-15 units)
+            const radius = 5 + Math.random() * 10;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.random() * Math.PI;
             
             fish.position.set(
                 radius * Math.sin(phi) * Math.cos(theta),
-                -5 + Math.random() * 15, // Between -5 and 10 depth
+                0 + Math.random() * 10, // Between 0 and 10 depth (near blocks)
                 radius * Math.sin(phi) * Math.sin(theta)
             );
             
@@ -91,46 +93,46 @@ export class FishSystem {
         
         switch (type) {
             case 'clownfish':
-                // Cone body + sphere head for better fish shape
-                bodyGeometry = new THREE.ConeGeometry(0.15, 0.4, 6);
+                // Cone body + sphere head for better fish shape - MUCH BIGGER
+                bodyGeometry = new THREE.ConeGeometry(0.3, 0.8, 8);
                 bodyMaterial = new THREE.MeshStandardMaterial({
                     color: 0xff6600,
-                    emissive: 0x331100,
-                    emissiveIntensity: 0.3,
+                    emissive: 0xff3300, // Brighter emissive for visibility
+                    emissiveIntensity: 0.8, // Increased emissive
                     metalness: 0.1,
                     roughness: 0.7
                 });
-                size = 0.5;
+                size = 1.0; // Bigger size
                 swimSpeed = 1.5;
                 break;
                 
             case 'angelfish':
-                // Taller body for angelfish
-                bodyGeometry = new THREE.ConeGeometry(0.2, 0.5, 8);
+                // Taller body for angelfish - MUCH BIGGER
+                bodyGeometry = new THREE.ConeGeometry(0.4, 1.0, 8);
                 bodyMaterial = new THREE.MeshStandardMaterial({
                     color: 0x00aaff,
-                    emissive: 0x003366,
-                    emissiveIntensity: 0.4,
+                    emissive: 0x0066ff, // Brighter emissive
+                    emissiveIntensity: 0.8, // Increased emissive
                     metalness: 0.2,
                     roughness: 0.6
                 });
-                size = 0.6;
+                size = 1.2; // Bigger size
                 swimSpeed = 1.2;
                 break;
                 
             case 'jellyfish':
-                // Bell-shaped jellyfish (no tail)
-                bodyGeometry = new THREE.ConeGeometry(0.3, 0.5, 8);
+                // Bell-shaped jellyfish (no tail) - MUCH BIGGER
+                bodyGeometry = new THREE.ConeGeometry(0.6, 1.0, 8);
                 bodyMaterial = new THREE.MeshStandardMaterial({
                     color: 0xff88ff,
-                    emissive: 0x660066,
-                    emissiveIntensity: 0.6,
+                    emissive: 0xff00ff, // Brighter emissive
+                    emissiveIntensity: 1.0, // Very bright for visibility
                     transparent: true,
-                    opacity: 0.7,
+                    opacity: 0.8, // Less transparent
                     metalness: 0.0,
                     roughness: 0.3
                 });
-                size = 0.5;
+                size = 1.0; // Bigger size
                 swimSpeed = 0.8;
                 break;
                 
@@ -177,32 +179,35 @@ export class FishSystem {
                     // Store toonMaterial reference for reuse
                     (group as any).toonMaterial = toonMaterial;
                     
-                    // Add head sphere with toon material
+                    // Scale up the entire group to make fish more visible
+                    group.scale.set(size * 2, size * 2, size * 2); // 2x scale for visibility
+                    
+                    // Add head sphere with toon material - BIGGER
                     if (type !== 'jellyfish') {
-                        const headGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                        const headGeometry = new THREE.SphereGeometry(0.2, 8, 8);
                         const headToonMaterial = new THREE.MeshToonMaterial({
                             color: bodyMaterial.color,
                             emissive: bodyMaterial.emissive,
-                            emissiveIntensity: bodyMaterial.emissiveIntensity || 0.3
+                            emissiveIntensity: bodyMaterial.emissiveIntensity || 0.8
                         });
                         headToonMaterial.gradientMap = toonMaterial.gradientMap;
                         const headMesh = new THREE.Mesh(headGeometry, headToonMaterial);
-                        headMesh.position.set(0, 0, 0.25);
+                        headMesh.position.set(0, 0, 0.5);
                         group.add(headMesh);
                     }
                     
-                    // Add tail fin (except jellyfish) with toon material
+                    // Add tail fin (except jellyfish) with toon material - BIGGER
                     let tailFin: THREE.Mesh | undefined;
                     if (type !== 'jellyfish') {
-                        const tailGeometry = new THREE.ConeGeometry(0.08, 0.2, 4);
+                        const tailGeometry = new THREE.ConeGeometry(0.16, 0.4, 4);
                         const tailToonMaterial = new THREE.MeshToonMaterial({
                             color: bodyMaterial.color,
                             emissive: bodyMaterial.emissive,
-                            emissiveIntensity: bodyMaterial.emissiveIntensity || 0.3
+                            emissiveIntensity: bodyMaterial.emissiveIntensity || 0.8
                         });
                         tailToonMaterial.gradientMap = toonMaterial.gradientMap;
                         tailFin = new THREE.Mesh(tailGeometry, tailToonMaterial);
-                        tailFin.position.set(0, 0, -0.25);
+                        tailFin.position.set(0, 0, -0.5);
                         tailFin.rotation.x = Math.PI;
                         group.add(tailFin);
                     }
@@ -275,11 +280,11 @@ export class FishSystem {
             // Update position based on velocity
             fish.position.add(fish.velocity.clone().multiplyScalar(deltaTime));
             
-            // Boundary check - wrap around if too far from origin
+            // Boundary check - wrap around if too far from origin (closer boundary)
             const distanceFromOrigin = fish.position.length();
-            if (distanceFromOrigin > 50) {
-                // Reset to opposite side
-                fish.position.normalize().multiplyScalar(-40);
+            if (distanceFromOrigin > 20) {
+                // Reset to opposite side, closer to origin
+                fish.position.normalize().multiplyScalar(-15);
                 fish.velocity.negate();
             }
             
