@@ -64,14 +64,27 @@ export class SwimmerController {
     private setupEventListeners(): void {
         // Keyboard controls - use capture phase to ensure we get events
         const keyDownHandler = (e: KeyboardEvent) => {
-            // Don't capture if typing in an input field
-            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+            // Don't capture if typing in an input field or if UI is open
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') {
+                return;
+            }
+            // Don't capture if a modal/overlay is visible
+            const marinepedia = document.getElementById('marinepedia-container');
+            const shop = document.getElementById('customization-shop-container');
+            const levelSelect = document.getElementById('level-select-container');
+            const upgradeShop = document.getElementById('upgrade-shop-container');
+            if (marinepedia?.style.display === 'block' || 
+                shop?.style.display === 'block' || 
+                levelSelect?.style.display === 'block' ||
+                upgradeShop?.style.display === 'block') {
                 return;
             }
             this.onKeyDown(e);
         };
         const keyUpHandler = (e: KeyboardEvent) => {
-            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') {
                 return;
             }
             this.onKeyUp(e);

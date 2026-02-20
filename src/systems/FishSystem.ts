@@ -154,27 +154,58 @@ export class FishSystem {
                 swimSpeed = 1.0;
         }
         
-        const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        bodyMesh.castShadow = true;
-        group.add(bodyMesh);
-        
-        // Add head sphere
-        if (type !== 'jellyfish') {
-            const headGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-            const headMesh = new THREE.Mesh(headGeometry, bodyMaterial);
-            headMesh.position.set(0, 0, 0.25);
-            group.add(headMesh);
-        }
-        
-        // Add tail fin (except jellyfish)
-        let tailFin: THREE.Mesh | undefined;
-        if (type !== 'jellyfish') {
-            const tailGeometry = new THREE.ConeGeometry(0.08, 0.2, 4);
-            tailFin = new THREE.Mesh(tailGeometry, bodyMaterial);
-            tailFin.position.set(0, 0, -0.25);
-            tailFin.rotation.x = Math.PI;
-            group.add(tailFin);
-        }
+                    // Use ToonMaterial for cartoon fish
+                    const toonMaterial = new THREE.MeshToonMaterial({
+                        color: bodyMaterial.color,
+                        emissive: bodyMaterial.emissive,
+                        emissiveIntensity: bodyMaterial.emissiveIntensity || 0.3
+                    });
+                    
+                    // Create gradient for cel shading
+                    const gradientTexture = new THREE.DataTexture(
+                        new Uint8Array([0, 0, 0, 128, 128, 128, 255, 255, 255]),
+                        3, 1,
+                        THREE.RGBFormat
+                    );
+                    gradientTexture.needsUpdate = true;
+                    toonMaterial.gradientMap = gradientTexture;
+                    
+                    const bodyMesh = new THREE.Mesh(bodyGeometry, toonMaterial);
+                    bodyMesh.castShadow = true;
+                    group.add(bodyMesh);
+                    
+                    // Store toonMaterial reference for reuse
+                    (group as any).toonMaterial = toonMaterial;
+                    
+                    // Add head sphere with toon material
+                    if (type !== 'jellyfish') {
+                        const headGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                        const headToonMaterial = new THREE.MeshToonMaterial({
+                            color: bodyMaterial.color,
+                            emissive: bodyMaterial.emissive,
+                            emissiveIntensity: bodyMaterial.emissiveIntensity || 0.3
+                        });
+                        headToonMaterial.gradientMap = toonMaterial.gradientMap;
+                        const headMesh = new THREE.Mesh(headGeometry, headToonMaterial);
+                        headMesh.position.set(0, 0, 0.25);
+                        group.add(headMesh);
+                    }
+                    
+                    // Add tail fin (except jellyfish) with toon material
+                    let tailFin: THREE.Mesh | undefined;
+                    if (type !== 'jellyfish') {
+                        const tailGeometry = new THREE.ConeGeometry(0.08, 0.2, 4);
+                        const tailToonMaterial = new THREE.MeshToonMaterial({
+                            color: bodyMaterial.color,
+                            emissive: bodyMaterial.emissive,
+                            emissiveIntensity: bodyMaterial.emissiveIntensity || 0.3
+                        });
+                        tailToonMaterial.gradientMap = toonMaterial.gradientMap;
+                        tailFin = new THREE.Mesh(tailGeometry, tailToonMaterial);
+                        tailFin.position.set(0, 0, -0.25);
+                        tailFin.rotation.x = Math.PI;
+                        group.add(tailFin);
+                    }
         
         return {
             mesh: bodyMesh, // Keep reference to main mesh for compatibility

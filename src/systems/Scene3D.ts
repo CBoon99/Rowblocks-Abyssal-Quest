@@ -18,16 +18,16 @@ export class Scene3D {
         private scene: THREE.Scene,
         private physicsWorld: PhysicsWorld
     ) {
-        // Create ambient light (soft underwater glow)
+        // Cartoon lighting - vibrant HemisphereLight for cartoon pop
         this.ambientLight = new THREE.HemisphereLight(
-            0x4488ff, // Sky color
-            0x001133, // Ground color
-            0.4
+            0x88ccff, // Bright cyan sky (cartoon vibrant)
+            0x003366, // Deep blue ground
+            0.8 // Higher intensity for cartoon look
         );
         this.scene.add(this.ambientLight);
         
-        // Create directional light (sun rays through water)
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        // Directional light with rim lighting effect
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
         this.directionalLight.position.set(50, 100, 50);
         this.directionalLight.castShadow = true;
         this.directionalLight.shadow.mapSize.width = 2048;
@@ -68,17 +68,8 @@ export class Scene3D {
             this.createCausticsProjector();
             console.log('✅ Caustics projector created');
             
-            // DEBUG: Add visible test cube to verify rendering works
-            console.log('🔴 Adding debug cube...');
-            const testCubeGeometry = new THREE.BoxGeometry(4, 4, 4);
-            const testCubeMaterial = new THREE.MeshBasicMaterial({
-                color: 0xff0000,
-                wireframe: true
-            });
-            const testCube = new THREE.Mesh(testCubeGeometry, testCubeMaterial);
-            testCube.position.set(0, 2, 0);
-            this.scene.add(testCube);
-            console.log('✅ DEBUG CUBE ADDED at (0, 2, 0) – should be visible if rendering works');
+            // DEBUG: Removed debug cube for Phase 4 (cartoon aesthetic)
+            // console.log('🔴 Debug cube removed for cartoon aesthetic');
             
             console.log('✅ Scene3D initialized successfully');
         } catch (error) {
@@ -108,14 +99,21 @@ export class Scene3D {
         }
         geometry.computeVertexNormals();
         
-        // Sand-like material with better color and texture
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x3a5f4a, // Sandy brown-green (ocean floor color)
-            roughness: 0.9, // Very rough like sand
-            metalness: 0.05, // Non-metallic
-            emissive: 0x1a2f1a, // Subtle glow from bioluminescence
-            emissiveIntensity: 0.1
+        // Cartoon sand material - bright yellow/orange with cel shading
+        const material = new THREE.MeshToonMaterial({
+            color: 0xffcc88, // Bright cartoon sand (yellow-orange)
+            emissive: 0x332200,
+            emissiveIntensity: 0.2
         });
+        
+        // Create gradient texture for cel shading
+        const gradientTexture = new THREE.DataTexture(
+            new Uint8Array([0, 0, 0, 128, 128, 128, 255, 255, 255]),
+            3, 1,
+            THREE.RGBFormat
+        );
+        gradientTexture.needsUpdate = true;
+        material.gradientMap = gradientTexture;
         
         // Apply caustics to ocean floor
         this.waterCaustics.applyToMaterial(material);

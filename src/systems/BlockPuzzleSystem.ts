@@ -193,55 +193,58 @@ export class BlockPuzzleSystem {
         if (type === 'exit') visualType = 'gem';
         
         const blockType = visualType;
+        // Cartoon rounded blocks - use RoundedBoxGeometry if available, or regular BoxGeometry
+        // For now, use regular box but we'll apply cartoon materials
         const geometry = new THREE.BoxGeometry(this.blockSize, this.blockSize, this.blockSize);
         
-        // Enhanced materials with better textures and emissive properties
-        let material: THREE.MeshStandardMaterial;
+        // Cartoon materials - use MeshToonMaterial for cel shading effect
+        let material: THREE.MeshToonMaterial;
         switch (blockType) {
             case 'gem':
-                material = new THREE.MeshStandardMaterial({
-                    color: 0x00ffff,
+                material = new THREE.MeshToonMaterial({
+                    color: 0x00ffff, // Bright cyan
                     emissive: 0x0066aa,
-                    emissiveIntensity: 0.5,
-                    metalness: 0.9,
-                    roughness: 0.1,
-                    envMapIntensity: 1.5
+                    emissiveIntensity: 0.6,
+                    gradientMap: null // Will create simple gradient for cel shading
                 });
                 break;
             case 'glow':
-                material = new THREE.MeshStandardMaterial({
-                    color: 0xff88ff,
+                material = new THREE.MeshToonMaterial({
+                    color: 0xff88ff, // Bright magenta
                     emissive: 0x660066,
-                    emissiveIntensity: 0.8,
-                    metalness: 0.6,
-                    roughness: 0.3
+                    emissiveIntensity: 0.9
                 });
                 break;
             case 'coral':
-                material = new THREE.MeshStandardMaterial({
-                    color: 0xff8888,
+                material = new THREE.MeshToonMaterial({
+                    color: 0xff6666, // Bright coral red
                     emissive: 0x330000,
-                    emissiveIntensity: 0.2,
-                    roughness: 0.6,
-                    metalness: 0.1
+                    emissiveIntensity: 0.3
                 });
                 break;
             case 'dark':
-                material = new THREE.MeshStandardMaterial({
-                    color: 0x111111,
+                material = new THREE.MeshToonMaterial({
+                    color: 0x333333, // Dark gray
                     emissive: 0x000000,
-                    roughness: 0.95,
-                    metalness: 0.05
+                    emissiveIntensity: 0.0
                 });
                 break;
             default: // rock
-                material = new THREE.MeshStandardMaterial({
-                    color: 0x555555,
+                material = new THREE.MeshToonMaterial({
+                    color: 0x888888, // Medium gray
                     emissive: 0x000000,
-                    roughness: 0.85,
-                    metalness: 0.1
+                    emissiveIntensity: 0.0
                 });
         }
+        
+        // Create simple gradient texture for cel shading (3-step gradient)
+        const gradientTexture = new THREE.DataTexture(
+            new Uint8Array([0, 0, 0, 128, 128, 128, 255, 255, 255]),
+            3, 1,
+            THREE.RGBFormat
+        );
+        gradientTexture.needsUpdate = true;
+        material.gradientMap = gradientTexture;
         
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(

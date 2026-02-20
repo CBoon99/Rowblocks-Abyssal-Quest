@@ -133,7 +133,21 @@ export class CustomizationShop {
         });
         
         const closeBtn = this.container.querySelector('#shop-close');
-        closeBtn?.addEventListener('click', () => this.hide());
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                console.log('Shop close button clicked');
+                this.hide();
+            });
+        }
+        
+        // Also close on Escape key
+        const escapeHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && this.isVisible) {
+                this.hide();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
     }
     
     private renderUpgrade(id: string, currentLevel: number, gems: number): string {

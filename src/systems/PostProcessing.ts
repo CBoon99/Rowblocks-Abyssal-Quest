@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 
 // Caustics shader
 const causticsShader = {
@@ -76,6 +77,8 @@ export class PostProcessing {
     private composer: EffectComposer;
     private causticsPass: ShaderPass;
     private bloomPass: UnrealBloomPass;
+    private outlinePass: OutlinePass | null = null;
+    private selectedObjects: THREE.Object3D[] = [];
     private time: number = 0;
     
     constructor(
@@ -89,6 +92,25 @@ export class PostProcessing {
         // Base render pass
         const renderPass = new RenderPass(scene, camera);
         this.composer.addPass(renderPass);
+        
+        // Outline pass for cartoon cel shading (black outlines)
+        try {
+            this.outlinePass = new OutlinePass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                scene,
+                camera
+            );
+            this.outlinePass.edgeStrength = 3.0;
+            this.outlinePass.edgeGlow = 0.0;
+            this.outlinePass.edgeThickness = 1.0;
+            this.outlinePass.pulsePeriod = 0;
+            this.outlinePass.visibleEdgeColor.set(0x000000); // Black outlines
+            this.outlinePass.hiddenEdgeColor.set(0x000000);
+            this.composer.addPass(this.outlinePass);
+            console.log('✅ Toon shading (OutlinePass) applied');
+        } catch (error) {
+            console.warn('⚠️ Could not create OutlinePass:', error);
+        }
         
         // Caustics pass
         this.causticsPass = new ShaderPass(causticsShader);
@@ -108,12 +130,25 @@ export class PostProcessing {
         window.addEventListener('resize', () => this.onResize());
     }
     
+    /**
+     * Set objects to receive cartoon outlines
+     */
+    setOutlinedObjects(objects: THREE.Object3D[]): void {
+        this.selectedObjects = objects;
+        if (this.outlinePass) {
+            this.outlinePass.selectedObjects = objects;
+        }
+    }
+    
     private onResize(): void {
         const width = window.innerWidth;
         const height = window.innerHeight;
         
         this.composer.setSize(width, height);
         this.causticsPass.uniforms.resolution.value.set(width, height);
+        if (this.outlinePass) {
+            this.outlinePass.setSize(width, height);
+        }
     }
     
     update(deltaTime: number, lightPosition?: THREE.Vector3): void {

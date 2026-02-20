@@ -142,8 +142,25 @@ const initGame = async () => {
         
                 // Setup menu button in HUD
                 document.addEventListener('keydown', (e) => {
+                    // Check if any UI is open
+                    const marinepedia = document.getElementById('marinepedia-container');
+                    const shop = document.getElementById('customization-shop-container');
+                    const levelSelect = document.getElementById('level-select-container');
+                    const upgradeShop = document.getElementById('upgrade-shop-container');
+                    
+                    const isUIOpen = (marinepedia?.style.display === 'block') ||
+                                    (shop?.style.display === 'block') ||
+                                    (levelSelect?.style.display === 'block') ||
+                                    (upgradeShop?.style.display === 'block');
+                    
                     if (e.key === 'Escape') {
-                        if (game.isRunning) {
+                        if (isUIOpen) {
+                            // Close any open UI
+                            marinepediaUI.hide();
+                            customizationShopUI.hide();
+                            upgradeShopUI.hide();
+                            levelSelectUI.hide();
+                        } else if (game.isRunning) {
                             game.stop();
                             levelSelectUI.show();
                         } else {
@@ -151,13 +168,15 @@ const initGame = async () => {
                         }
                     }
                     if (e.key === 'u' || e.key === 'U') {
-                        upgradeShopUI.show();
+                        if (!isUIOpen) upgradeShopUI.show();
                     }
                     if (e.key === 'm' || e.key === 'M') {
-                        marinepediaUI.show();
+                        if (!isUIOpen) marinepediaUI.show();
+                        else if (marinepedia?.style.display === 'block') marinepediaUI.hide();
                     }
                     if (e.key === 'c' || e.key === 'C') {
-                        customizationShopUI.show();
+                        if (!isUIOpen) customizationShopUI.show();
+                        else if (shop?.style.display === 'block') customizationShopUI.hide();
                     }
                 });
         
