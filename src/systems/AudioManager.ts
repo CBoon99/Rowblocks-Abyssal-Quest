@@ -175,6 +175,17 @@ export class AudioManager {
     
     private initSoundEffects(): void {
         // Create placeholder sounds that won't crash if Howl fails
+        // Collect/catch sound
+        try {
+            const collectSound = this.createProceduralSound('collect', 0.3, 800, 'sine');
+            if (collectSound) {
+                (this as any).sounds = (this as any).sounds || new Map();
+                (this as any).sounds.set('collect', collectSound);
+            }
+        } catch (e) {
+            console.warn('Could not create collect sound:', e);
+        }
+        
         // Block slide sound
         try {
             this.sounds.set('blockSlide', this.createProceduralSound('blockSlide'));

@@ -295,6 +295,14 @@ export class LevelSystem {
         this.stars = this.calculateStars();
         this.currentLevelData.stars = Math.max(this.currentLevelData.stars, this.stars);
         
+        // Award gems for completing level
+        const store = (window as any).useGameStore;
+        if (store) {
+            const gemReward = this.stars * 10; // 10 gems per star
+            store.getState().addGems(gemReward);
+            console.log(`💎 Level complete! Awarded ${gemReward} gems (${this.stars} stars)`);
+        }
+        
         // Unlock next level
         const nextLevel = this.levels.find(l => l.id === this.currentLevel + 1);
         const unlocked: number[] = [];

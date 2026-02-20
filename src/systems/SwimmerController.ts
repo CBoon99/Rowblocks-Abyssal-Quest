@@ -42,12 +42,21 @@ export class SwimmerController {
         // Set initial camera position to match physics body
         this.camera.position.set(0, 8, 5);
         
-        // Create flashlight
+        // Create flashlight (intensity will be updated based on upgrades)
         this.flashlight = new THREE.SpotLight(0xffffff, 2, 50, Math.PI / 6, 0.3);
         this.flashlight.position.copy(this.camera.position);
         this.flashlight.target.position.set(0, 0, -10);
         this.camera.add(this.flashlight);
         this.camera.add(this.flashlight.target);
+        
+        // Subscribe to store for customization updates
+        this.updateCustomization();
+        const store = (window as any).useGameStore;
+        if (store) {
+            store.subscribe(() => {
+                this.updateCustomization();
+            });
+        }
         
         this.setupEventListeners();
     }
@@ -111,8 +120,26 @@ export class SwimmerController {
             case 'KeyS': this.moveBackward = true; break;
             case 'KeyA': this.moveLeft = true; break;
             case 'KeyD': this.moveRight = true; break;
-            case 'Space': this.moveUp = true; event.preventDefault(); break;
+            case 'Space': 
+                // Check if we should collect fish or swim up
+                const game = (window as any).game;
+                if (game && typeof game.collectFish === 'function') {
+                    if (!game.collectFish()) {
+                        // No fish caught, swim up
+                        this.moveUp = true;
+                    }
+                } else {
+                    this.moveUp = true;
+                }
+                event.preventDefault(); 
+                break;
             case 'ShiftLeft': this.moveDown = true; break;
+            case 'KeyE': // Also use E to collect fish
+                const gameE = (window as any).game;
+                if (gameE && typeof gameE.collectFish === 'function') {
+                    gameE.collectFish();
+                }
+                break;
         }
     }
     
@@ -206,5 +233,29 @@ export class SwimmerController {
     
     getDirection(): THREE.Vector3 {
         return this.direction.clone();
+    }
+    
+    /**
+     * Update customization (skin color, helmet upgrade, etc.)
+     */
+    private updateCustomization(): void {
+        try {
+            const store = (window as any).useGameStore;
+            if (!store) return;
+            
+            const state = store.getState();
+            
+            // Update flashlight intensity based on helmet upgrade
+            if (this.flashlight) {
+                const baseIntensity = 2;
+                const upgradeMultiplier = 1 + (state.helmetUpgrade * 0.5);
+                this.flashlight.intensity = baseIntensity * upgradeMultiplier;
+            }
+            
+            // TODO: Apply skin color to diver mesh (when diver model is added)
+            // For now, skin changes are tracked in store but not visually applied
+        } catch (e) {
+            console.warn('Could not update customization:', e);
+        }
     }
 }

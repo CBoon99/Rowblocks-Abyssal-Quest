@@ -20,6 +20,11 @@ export class Game {
     private postProcessing: PostProcessing | null = null;
     private levelSystem: LevelSystem;
     private upgradeSystem: UpgradeSystem;
+    private fishSystem: FishSystem;
+    private bubblesSystem: BubblesSystem;
+    private questSystem: QuestSystem;
+    private currentForce: THREE.Vector3 = new THREE.Vector3();
+    private currentTimer: number = 0;
     private _isRunning: boolean = false;
     private animationId: number | null = null;
     private lastTime: number = 0;
@@ -83,6 +88,7 @@ export class Game {
         // Create scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x001122);
+        // Depth-based fog will be updated dynamically based on camera depth
         this.scene.fog = new THREE.FogExp2(0x001122, 0.015);
         
         // Create camera
@@ -104,6 +110,8 @@ export class Game {
         this.scene3D = new Scene3D(this.scene, this.physicsWorld);
         this.swimmerController = new SwimmerController(this.camera, this.physicsWorld);
         this.blockPuzzleSystem = new BlockPuzzleSystem(this.scene, this.physicsWorld);
+        this.fishSystem = new FishSystem(this.scene, this.physicsWorld);
+        this.bubblesSystem = new BubblesSystem(this.scene);
         
         // Initialize post-processing (after renderer is ready)
         this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
@@ -131,6 +139,15 @@ export class Game {
                 console.log('✅ AudioManager initialized');
             } catch (error) {
                 console.warn('⚠️ Audio initialization failed, continuing without audio:', error);
+            }
+            
+            // Initialize fish system
+            console.log('🐟 Initializing FishSystem...');
+            try {
+                await this.fishSystem.init();
+                console.log('✅ FishSystem initialized');
+            } catch (error) {
+                console.warn('⚠️ FishSystem initialization failed:', error);
             }
             
             // Initialize block puzzle system
@@ -290,6 +307,32 @@ export class Game {
                 console.error('Scene3D update error:', e);
             }
             
+            // Update currents (random forces, stronger deeper)
+            this.updateCurrents(deltaTime);
+            
+            // Update fish system with boids and currents
+            try {
+                this.fishSystem.update(deltaTime, this.camera.position, this.currentForce);
+            } catch (e) {
+                console.warn('⚠️ FishSystem update error:', e);
+            }
+            
+            // Update bubbles system
+            try {
+                this.bubblesSystem.update(deltaTime, this.camera.position);
+            } catch (e) {
+                console.warn('⚠️ BubblesSystem update error:', e);
+            }
+            
+            // Apply current forces to blocks and swimmer
+            this.applyCurrentForces(deltaTime);
+            
+            // Update depth-based fog (density increases with depth)
+            this.updateDepthFog();
+            
+            // Update depth quest
+            this.updateDepthQuest();
+            
             try {
                 this.audioManager.update(deltaTime);
             } catch (e) {
@@ -352,5 +395,145 @@ export class Game {
     
     getBlockPuzzleSystem(): BlockPuzzleSystem {
         return this.blockPuzzleSystem;
+    }
+    
+    getFishSystem(): FishSystem {
+        return this.fishSystem;
+    }
+    
+    /**
+     * Update fog density based on camera depth (deeper = denser fog)
+     */
+    private updateDepthFog(): void {
+        if (this.scene.fog instanceof THREE.FogExp2) {
+            // Camera Y position: positive = up, negative = down (deeper)
+            // Convert to depth: 0 = surface, negative = deeper
+            const depth = -this.camera.position.y; // Negative Y = deeper
+            const baseDensity = 0.015;
+            const depthMultiplier = Math.max(0, depth / 50); // Increase fog with depth
+            this.scene.fog.density = baseDensity + depthMultiplier * 0.01;
+            
+            // Also darken fog color slightly with depth
+            const depthFactor = Math.min(1, depth / 100);
+            this.scene.fog.color.setRGB(
+                0.0 + depthFactor * 0.05, // R: darker with depth
+                0.07 + depthFactor * 0.03, // G: darker with depth
+                0.13 + depthFactor * 0.02  // B: darker with depth
+            );
+        }
+    }
+    
+    /**
+     * Get current depth in meters (negative Y = deeper)
+     */
+    getCurrentDepth(): number {
+        return Math.max(0, -this.camera.position.y);
+    }
+    
+    /**
+     * Update ocean currents (random forces, stronger at depth)
+     */
+    private updateCurrents(deltaTime: number): void {
+        this.currentTimer += deltaTime;
+        
+        // Change current direction every 3-5 seconds
+        if (this.currentTimer > 3 + Math.random() * 2) {
+            const depth = this.getCurrentDepth();
+            const strength = 0.1 + (depth / 100) * 0.2; // Stronger deeper
+            
+            // Random direction
+            this.currentForce.set(
+                (Math.random() - 0.5) * strength,
+                (Math.random() - 0.5) * strength * 0.3, // Less vertical
+                (Math.random() - 0.5) * strength
+            );
+            
+            this.currentTimer = 0;
+            console.log(`🌊 Current force applied: strength=${strength.toFixed(2)}, depth=${depth.toFixed(1)}m`);
+        }
+    }
+    
+    /**
+     * Apply current forces to physics bodies (blocks, swimmer)
+     */
+    private applyCurrentForces(deltaTime: number): void {
+        const world = this.physicsWorld.getWorld();
+        
+        // Apply to all bodies (blocks, swimmer)
+        world.bodies.forEach((body) => {
+            if (body.mass > 0) { // Only dynamic bodies
+                const force = this.currentForce.clone();
+                force.multiplyScalar(body.mass * 0.5); // Scale by mass
+                body.applyForce(force as any);
+            }
+        });
+    }
+    
+    /**
+     * Try to collect fish (raycast from camera)
+     */
+    collectFish(): boolean {
+        const store = useGameStore.getState();
+        const netRange = store.netRange;
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+        
+        const fish = this.fishSystem.raycastForFish(raycaster, netRange);
+        if (fish) {
+            const depth = Math.max(0, -this.camera.position.y);
+            
+            // Add to collection
+            const isNew = store.addFish({
+                type: fish.type,
+                name: fish.type.charAt(0).toUpperCase() + fish.type.slice(1),
+                depth: depth,
+                timestamp: Date.now(),
+                description: `A ${fish.type} caught at ${depth.toFixed(0)}m depth.`
+            });
+            
+            // Update quests
+            this.questSystem.updateQuestProgress('catch_fish', 1);
+            if (fish.type === 'clownfish') {
+                this.questSystem.updateQuestProgress('catch_clownfish', 1);
+            } else if (fish.type === 'angelfish') {
+                this.questSystem.updateQuestProgress('catch_angelfish', 1);
+            }
+            
+            // Play catch sound
+            try {
+                this.audioManager.playSound('collect');
+            } catch (e) {
+                console.warn('Could not play collect sound:', e);
+            }
+            
+            // Remove fish from scene
+            this.fishSystem.removeFish(fish);
+            
+            console.log(`🎣 Fish caught: ${fish.type}! ${this.fishSystem.getFishes().length} remaining`);
+            if (isNew) {
+                console.log(`📚 New fish added to Marinepedia!`);
+            }
+            
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Update quest progress for depth
+     */
+    updateDepthQuest(): void {
+        const depth = this.getCurrentDepth();
+        this.questSystem.updateQuestProgress('depth', depth);
+    }
+    
+    getQuestSystem(): QuestSystem {
+        return this.questSystem;
+    }
+    
+    getBubblesSystem(): BubblesSystem {
+        return this.bubblesSystem;
     }
 }

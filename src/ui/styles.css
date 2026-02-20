@@ -392,6 +392,13 @@
     pointer-events: auto;
 }
 
+.hud-bottom-left {
+    position: absolute;
+    bottom: 30px;
+    left: 20px;
+    pointer-events: auto;
+}
+
 .hud-btn {
     width: 60px;
     height: 60px;
@@ -644,4 +651,434 @@
 
 .error-message {
     animation: shake 0.5s ease-out;
+}
+
+/* Marinepedia UI */
+.marinepedia-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 10, 30, 0.98);
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    overflow-y: auto;
+    z-index: 2000;
+}
+
+.marinepedia-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.marinepedia-header h2 {
+    font-size: 2.5rem;
+    color: #00d4ff;
+    margin: 0;
+}
+
+.marinepedia-stats {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    align-items: center;
+}
+
+.progress-bar {
+    width: 200px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #00d4ff;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00d4ff, #00ffff);
+    transition: width 0.3s ease;
+}
+
+.marinepedia-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.fish-entry {
+    background: rgba(0, 50, 100, 0.6);
+    border: 3px solid #00d4ff;
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.fish-entry.collected {
+    border-color: #00ffff;
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.fish-entry.locked {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.new-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff0000;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.fish-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.fish-name {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #00d4ff;
+    margin-bottom: 1rem;
+}
+
+.fish-details {
+    font-size: 0.9rem;
+    color: #88d0ff;
+}
+
+.fish-locked {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.locked-icon {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+/* Customization Shop */
+.customization-shop-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 10, 30, 0.98);
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    overflow-y: auto;
+    z-index: 2000;
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.shop-header h2 {
+    font-size: 2.5rem;
+    color: #00d4ff;
+    margin: 0;
+}
+
+.shop-currency {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.5rem;
+    color: #ffd700;
+    font-weight: bold;
+    margin-bottom: 2rem;
+}
+
+.shop-section {
+    margin-bottom: 3rem;
+}
+
+.shop-section h3 {
+    font-size: 1.8rem;
+    color: #00d4ff;
+    margin-bottom: 1rem;
+}
+
+.shop-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.shop-item {
+    background: rgba(0, 50, 100, 0.6);
+    border: 2px solid #00d4ff;
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    transition: all 0.3s;
+}
+
+.shop-item.selected {
+    border-color: #00ffff;
+    background: rgba(0, 255, 255, 0.2);
+}
+
+.shop-item.cant-afford {
+    opacity: 0.6;
+}
+
+.shop-item.maxed {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.item-preview {
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    border: 2px solid #00d4ff;
+}
+
+.item-icon {
+    font-size: 3rem;
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-name {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #00d4ff;
+    margin-bottom: 0.5rem;
+}
+
+.item-desc {
+    font-size: 1rem;
+    color: #88d0ff;
+    margin-bottom: 0.5rem;
+}
+
+.item-level {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.item-cost {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.item-owned {
+    padding: 0.8rem 1.5rem;
+    background: rgba(0, 255, 0, 0.2);
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    color: #00ff00;
+    font-weight: bold;
+}
+
+.close-btn {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 0, 0, 0.3);
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 0, 0, 0.5);
+    transform: scale(1.05);
+}
+
+/* Quest Complete Popup */
+.quest-complete-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.quest-popup-content {
+    background: rgba(0, 50, 100, 0.95);
+    border: 3px solid #00ffff;
+    border-radius: 20px;
+    padding: 3rem;
+    text-align: center;
+    max-width: 500px;
+    animation: slideUp 0.5s ease-out;
+}
+
+.quest-popup-title {
+    font-size: 2.5rem;
+    color: #00ffff;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.quest-popup-quest-name {
+    font-size: 1.8rem;
+    color: #ffd700;
+    margin-bottom: 1rem;
+}
+
+.quest-popup-story {
+    font-size: 1.1rem;
+    color: #88d0ff;
+    margin: 1.5rem 0;
+    font-style: italic;
+}
+
+.quest-popup-reward {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 1.5rem;
+    color: #ffd700;
+    font-weight: bold;
+    margin: 1.5rem 0;
+}
+
+.quest-popup-close {
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.quest-popup-close:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 212, 255, 0.5);
+}
+
+/* New Fish Notification */
+.new-fish-notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: rgba(0, 255, 0, 0.9);
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    z-index: 2500;
+    animation: slideInRight 0.5s ease-out;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #000;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Depth Meter Styles */
+.depth-meter-container {
+    background: rgba(0, 20, 40, 0.8);
+    border: 2px solid rgba(0, 212, 255, 0.5);
+    border-radius: 10px;
+    padding: 10px 20px;
+    backdrop-filter: blur(10px);
+    min-width: 200px;
+}
+
+.depth-meter-label {
+    color: #00d4ff;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.depth-meter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.depth-meter-bar {
+    flex: 1;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    position: relative;
+}
+
+.depth-meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00ff00, #ffff00, #ff8800, #ff0000);
+    transition: width 0.1s ease, background-color 0.1s ease;
+    border-radius: 10px;
+}
+
+.depth-meter-value {
+    color: #00d4ff;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 50px;
+    text-align: right;
 }

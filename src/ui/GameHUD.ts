@@ -1,20 +1,28 @@
 import { LevelSystem } from '../systems/LevelSystem';
 import { UpgradeSystem } from '../systems/UpgradeSystem';
+import { useGameStore } from '../stores/GameStore';
 
 export class GameHUD {
     private container: HTMLElement;
     private levelSystem: LevelSystem;
     private upgradeSystem: UpgradeSystem;
+    private game: any = null; // Reference to Game for depth access
     
     constructor(
         container: HTMLElement,
         levelSystem: LevelSystem,
-        upgradeSystem: UpgradeSystem
+        upgradeSystem: UpgradeSystem,
+        game?: any // Optional game reference for depth meter
     ) {
         this.container = container;
         this.levelSystem = levelSystem;
         this.upgradeSystem = upgradeSystem;
+        this.game = game;
         this.render();
+    }
+    
+    setGame(game: any): void {
+        this.game = game;
     }
     
     render(): void {
@@ -22,13 +30,23 @@ export class GameHUD {
         const moves = this.levelSystem.getMoves();
         const score = this.levelSystem.getScore();
         const currency = this.upgradeSystem.getCurrency();
+        const depth = this.game ? Math.round(this.game.getCurrentDepth()) : 0;
+        
+        // Get gems and collected fish count from store
+        const store = useGameStore.getState();
+        const gems = store.gems;
+        const collectedCount = store.collectedFish.length;
         
         this.container.innerHTML = `
             <div class="game-hud">
                 <div class="hud-top">
                     <div class="hud-stat">
                         <span class="stat-icon">💎</span>
-                        <span id="hud-currency">${currency}</span>
+                        <span id="hud-gems">${gems}</span>
+                    </div>
+                    <div class="hud-stat">
+                        <span class="stat-icon">🐟</span>
+                        <span id="hud-collected">${collectedCount}</span>
                     </div>
                     <div class="hud-stat">
                         <span class="stat-icon">⭐</span>
@@ -46,6 +64,17 @@ export class GameHUD {
                             <span>Moves: </span>
                             <span id="hud-moves">${moves}</span>
                             <span> / ${currentLevel?.maxMoves || 0}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hud-bottom-left">
+                    <div class="depth-meter-container">
+                        <div class="depth-meter-label">Depth</div>
+                        <div class="depth-meter">
+                            <div class="depth-meter-bar" id="depth-meter-bar">
+                                <div class="depth-meter-fill" id="depth-meter-fill"></div>
+                            </div>
+                            <div class="depth-meter-value" id="depth-meter-value">${depth}m</div>
                         </div>
                     </div>
                 </div>

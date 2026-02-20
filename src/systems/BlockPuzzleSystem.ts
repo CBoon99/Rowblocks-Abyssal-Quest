@@ -330,6 +330,8 @@ export class BlockPuzzleSystem {
     }
     
     private onKeyDown(event: KeyboardEvent): void {
+        // Award gems when collecting gem blocks (check if any gem blocks were collected)
+        // This will be called when blocks are interacted with
         if (!this.selectedAxis || this.selectedIndex === -1) return;
         
         const blocksInRow = this.blocks.filter(block => {

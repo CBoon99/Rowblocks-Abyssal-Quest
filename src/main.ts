@@ -5,6 +5,8 @@ import { GameHUD } from './ui/GameHUD';
 import { LevelSelectUI } from './ui/LevelSelectUI';
 import { UpgradeShopUI } from './ui/UpgradeShopUI';
 import { MainMenuUI } from './ui/MainMenuUI';
+import { MarinepediaUI } from './ui/MarinepediaUI';
+import { CustomizationShop } from './ui/CustomizationShop';
 
 // Initialize game when DOM is ready
 const initGame = async () => {
@@ -40,7 +42,8 @@ const initGame = async () => {
         const gameHUD = new GameHUD(
             document.getElementById('game-hud-container')!,
             game.getLevelSystem(),
-            game.getUpgradeSystem()
+            game.getUpgradeSystem(),
+            game // Pass game reference for depth access
         );
         const levelSelectUI = new LevelSelectUI(
             document.getElementById('level-select-container')!,
@@ -89,11 +92,17 @@ const initGame = async () => {
                 }
             }
         );
-        const upgradeShopUI = new UpgradeShopUI(
-            document.getElementById('upgrade-shop-container')!,
-            game.getUpgradeSystem()
-        );
-        const mainMenuUI = new MainMenuUI(
+                const upgradeShopUI = new UpgradeShopUI(
+                    document.getElementById('upgrade-shop-container')!,
+                    game.getUpgradeSystem()
+                );
+                const marinepediaUI = new MarinepediaUI(
+                    document.getElementById('marinepedia-container')!
+                );
+                const customizationShopUI = new CustomizationShop(
+                    document.getElementById('customization-shop-container')!
+                );
+                const mainMenuUI = new MainMenuUI(
             document.getElementById('start-screen')!,
             () => {
                 mainMenuUI.hide();
@@ -109,11 +118,13 @@ const initGame = async () => {
             }
         );
         
-        // Make UI accessible globally
-        (window as any).gameHUD = gameHUD;
-        (window as any).levelSelectUI = levelSelectUI;
-        (window as any).upgradeShopUI = upgradeShopUI;
-        (window as any).mainMenuUI = mainMenuUI;
+                // Make UI accessible globally
+                (window as any).gameHUD = gameHUD;
+                (window as any).levelSelectUI = levelSelectUI;
+                (window as any).upgradeShopUI = upgradeShopUI;
+                (window as any).marinepediaUI = marinepediaUI;
+                (window as any).customizationShopUI = customizationShopUI;
+                (window as any).mainMenuUI = mainMenuUI;
         
         // Hide loading screen
         if (loadingEl) {
@@ -129,20 +140,26 @@ const initGame = async () => {
         };
         updateMenuStats();
         
-        // Setup menu button in HUD
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (game.isRunning) {
-                    game.stop();
-                    levelSelectUI.show();
-                } else {
-                    levelSelectUI.show();
-                }
-            }
-            if (e.key === 'u' || e.key === 'U') {
-                upgradeShopUI.show();
-            }
-        });
+                // Setup menu button in HUD
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        if (game.isRunning) {
+                            game.stop();
+                            levelSelectUI.show();
+                        } else {
+                            levelSelectUI.show();
+                        }
+                    }
+                    if (e.key === 'u' || e.key === 'U') {
+                        upgradeShopUI.show();
+                    }
+                    if (e.key === 'm' || e.key === 'M') {
+                        marinepediaUI.show();
+                    }
+                    if (e.key === 'c' || e.key === 'C') {
+                        customizationShopUI.show();
+                    }
+                });
         
         // Update HUD in game loop (only when game is running)
         let hudAnimationId: number | null = null;

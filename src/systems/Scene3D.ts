@@ -11,6 +11,8 @@ export class Scene3D {
     private particles: THREE.Points | null = null;
     private time: number = 0;
     private waterCaustics: WaterCaustics;
+    private causticsProjector: THREE.SpotLight | null = null;
+    private causticsTexture: THREE.Texture | null = null;
     
     constructor(
         private scene: THREE.Scene,
@@ -61,6 +63,11 @@ export class Scene3D {
             this.createBioluminescentLights();
             console.log('✅ Lights created');
             
+            // Create enhanced caustics projector
+            console.log('💧 Creating caustics projector...');
+            this.createCausticsProjector();
+            console.log('✅ Caustics projector created');
+            
             // DEBUG: Add visible test cube to verify rendering works
             console.log('🔴 Adding debug cube...');
             const testCubeGeometry = new THREE.BoxGeometry(4, 4, 4);
@@ -81,22 +88,33 @@ export class Scene3D {
     }
     
     private async createOceanFloor(): Promise<void> {
-        const geometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+        // Enhanced sea floor with better sand-like appearance
+        // Higher resolution for smoother terrain
+        const geometry = new THREE.PlaneGeometry(200, 200, 128, 128);
         
-        // Add noise to create terrain
+        // Enhanced noise function for sand dunes/terrain
         const positions = geometry.attributes.position;
         for (let i = 0; i < positions.count; i++) {
             const x = positions.getX(i);
             const y = positions.getY(i);
-            const noise = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 2;
-            positions.setZ(i, noise);
+            
+            // Multi-octave noise for more natural sand dunes
+            const noise1 = Math.sin(x * 0.05) * Math.cos(y * 0.05) * 3;
+            const noise2 = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 1;
+            const noise3 = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.5;
+            const combinedNoise = noise1 + noise2 + noise3;
+            
+            positions.setZ(i, combinedNoise);
         }
         geometry.computeVertexNormals();
         
+        // Sand-like material with better color and texture
         const material = new THREE.MeshStandardMaterial({
-            color: 0x224466,
-            roughness: 0.8,
-            metalness: 0.1
+            color: 0x3a5f4a, // Sandy brown-green (ocean floor color)
+            roughness: 0.9, // Very rough like sand
+            metalness: 0.05, // Non-metallic
+            emissive: 0x1a2f1a, // Subtle glow from bioluminescence
+            emissiveIntensity: 0.1
         });
         
         // Apply caustics to ocean floor
@@ -115,6 +133,8 @@ export class Scene3D {
         floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
         floorBody.position.set(0, -20, 0);
         this.physicsWorld.addBody(floorBody);
+        
+        console.log('✅ Enhanced sea floor created with sand-like terrain');
     }
     
     private createParticles(): void {
@@ -247,6 +267,67 @@ export class Scene3D {
         
         // Update water caustics
         this.waterCaustics.update(deltaTime);
+        
+        // Animate caustics projector
+        if (this.causticsProjector) {
+            // Move projector in circular pattern
+            const radius = 30;
+            this.causticsProjector.position.x = Math.sin(this.time * 0.1) * radius;
+            this.causticsProjector.position.z = Math.cos(this.time * 0.1) * radius;
+            this.causticsProjector.position.y = 20;
+            
+            // Animate texture offset for moving caustics
+            if (this.causticsTexture) {
+                this.causticsTexture.offset.x += deltaTime * 0.1;
+                this.causticsTexture.offset.y += deltaTime * 0.05;
+                if (this.causticsTexture.offset.x > 1) this.causticsTexture.offset.x -= 1;
+                if (this.causticsTexture.offset.y > 1) this.causticsTexture.offset.y -= 1;
+            }
+        }
+    }
+    
+    /**
+     * Create animated caustics projector for enhanced underwater lighting
+     */
+    private createCausticsProjector(): void {
+        // Create caustics texture (procedural noise pattern)
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d')!;
+        
+        // Create noise pattern for caustics
+        const imageData = ctx.createImageData(size, size);
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const x = (i / 4) % size;
+            const y = Math.floor((i / 4) / size);
+            const noise = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 0.5 + 0.5;
+            imageData.data[i] = noise * 255;     // R
+            imageData.data[i + 1] = noise * 255; // G
+            imageData.data[i + 2] = noise * 255; // B
+            imageData.data[i + 3] = noise * 200; // A
+        }
+        ctx.putImageData(imageData, 0, 0);
+        
+        this.causticsTexture = new THREE.CanvasTexture(canvas);
+        this.causticsTexture.wrapS = THREE.RepeatWrapping;
+        this.causticsTexture.wrapT = THREE.RepeatWrapping;
+        this.causticsTexture.repeat.set(2, 2);
+        
+        // Create spotlight projector
+        this.causticsProjector = new THREE.SpotLight(0x88ccff, 1.5, 100, Math.PI / 4, 0.3);
+        this.causticsProjector.position.set(0, 20, 0);
+        this.causticsProjector.target.position.set(0, -20, 0);
+        this.causticsProjector.castShadow = true;
+        this.causticsProjector.shadow.mapSize.width = 1024;
+        this.causticsProjector.shadow.mapSize.height = 1024;
+        
+        // Apply caustics texture to projector
+        (this.causticsProjector as any).map = this.causticsTexture;
+        
+        this.scene.add(this.causticsProjector);
+        this.scene.add(this.causticsProjector.target);
     }
     
     getLightPosition(): THREE.Vector3 {
