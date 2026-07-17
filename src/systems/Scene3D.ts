@@ -2,333 +2,565 @@ import * as THREE from 'three';
 import { PhysicsWorld } from './PhysicsWorld';
 import * as CANNON from 'cannon-es';
 import { WaterCaustics } from './WaterCaustics';
+import { OceanEnvironment } from './OceanEnvironment';
+import { REEF_ZONES, reefInfluence } from './WorldMap';
+import { AssetLibrary } from './AssetLibrary';
+
+/** Deep seafloor world Y — physics plane matches visual base. */
+const FLOOR_Y = -12;
+/** Legacy home shelf (home reef). */
+const SHELF_Y = -2.5;
+const SHELF_RADIUS = 11;
+/** Water surface plane. */
+const SURFACE_Y = 15;
 
 export class Scene3D {
     private oceanFloor: THREE.Mesh | null = null;
+    private waterSurface: THREE.Mesh | null = null;
     private ambientLight: THREE.HemisphereLight;
     private directionalLight: THREE.DirectionalLight;
+    private fillLight: THREE.DirectionalLight;
     private pointLights: THREE.PointLight[] = [];
     private particles: THREE.Points | null = null;
+    private particleVelocities: Float32Array | null = null;
     private time: number = 0;
-    private waterCaustics: WaterCaustics;
+    private waterCaustics!: WaterCaustics;
     private causticsProjector: THREE.SpotLight | null = null;
     private causticsTexture: THREE.Texture | null = null;
-    
+    private oceanEnv: OceanEnvironment | null = null;
+    private floorBody: CANNON.Body | null = null;
+    private underwaterFills: THREE.PointLight[] = [];
+    private sandMaterial: THREE.MeshStandardMaterial | null = null;
+
     constructor(
         private scene: THREE.Scene,
         private physicsWorld: PhysicsWorld
     ) {
-        // Cartoon lighting - vibrant HemisphereLight for cartoon pop
+        // Warm sky / cool seafloor hemisphere for realistic underwater fill
         this.ambientLight = new THREE.HemisphereLight(
-            0x88ccff, // Bright cyan sky (cartoon vibrant)
-            0x003366, // Deep blue ground
-            0.8 // Higher intensity for cartoon look
+            0x7ec8e8, // sky: bright cyan-blue
+            0x0a2a3a, // ground: deep teal
+            0.55
         );
         this.scene.add(this.ambientLight);
-        
-        // Directional light with rim lighting effect
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        this.directionalLight.position.set(50, 100, 50);
-        this.directionalLight.castShadow = true;
-        this.directionalLight.shadow.mapSize.width = 2048;
-        this.directionalLight.shadow.mapSize.height = 2048;
+
+        // Sun from above — warm directional (shadow map size from quality tier)
+        const qc =
+            typeof window !== 'undefined' ? (window as any).qualityConfig : null;
+        const shadowMapSize =
+            qc && typeof qc.shadowMapSize === 'number' ? qc.shadowMapSize : 2048;
+        const shadowsEnabled = qc ? !!qc.shadows : true;
+
+        this.directionalLight = new THREE.DirectionalLight(0xfff0dd, 1.35);
+        this.directionalLight.position.set(40, 80, 30);
+        this.directionalLight.castShadow = shadowsEnabled;
+        this.directionalLight.shadow.mapSize.width = shadowMapSize;
+        this.directionalLight.shadow.mapSize.height = shadowMapSize;
         this.directionalLight.shadow.camera.near = 0.5;
-        this.directionalLight.shadow.camera.far = 500;
-        this.directionalLight.shadow.camera.left = -100;
-        this.directionalLight.shadow.camera.right = 100;
-        this.directionalLight.shadow.camera.top = 100;
-        this.directionalLight.shadow.camera.bottom = -100;
+        this.directionalLight.shadow.camera.far = 400;
+        this.directionalLight.shadow.camera.left = -80;
+        this.directionalLight.shadow.camera.right = 80;
+        this.directionalLight.shadow.camera.top = 80;
+        this.directionalLight.shadow.camera.bottom = -80;
+        this.directionalLight.shadow.bias = -0.0003;
         this.scene.add(this.directionalLight);
+
+        // Cool underwater fill from the side
+        this.fillLight = new THREE.DirectionalLight(0x44aacc, 0.35);
+        this.fillLight.position.set(-30, 10, -40);
+        this.scene.add(this.fillLight);
     }
-    
+
     async init(): Promise<void> {
         console.log('🌊 Scene3D.init() started');
         try {
-            // Initialize water caustics
+            // Environment fog / background — blue-green underwater
+            this.scene.background = new THREE.Color(0x0a3a4a);
+            this.scene.fog = new THREE.FogExp2(0x0c4050, 0.018);
+
             console.log('💧 Initializing water caustics...');
             this.waterCaustics = new WaterCaustics();
-            
-            // Create ocean floor
-            console.log('🏔️ Creating ocean floor...');
+
+            console.log('🏔️ Creating ocean floor + reef shelf...');
             await this.createOceanFloor();
             console.log('✅ Ocean floor created');
-            
-            // Create bioluminescent particles
-            console.log('✨ Creating particles...');
+
+            console.log('🪸 Building reef environment (rocks, coral, kelp, god rays)...');
+            this.oceanEnv = new OceanEnvironment(this.scene);
+            this.oceanEnv.build(SHELF_Y, SHELF_RADIUS);
+            console.log('✅ Reef environment created');
+
+            console.log('🌊 Creating water surface...');
+            this.createWaterSurface();
+            console.log('✅ Water surface created');
+
+            console.log('✨ Creating marine snow / plankton...');
             this.createParticles();
             console.log('✅ Particles created');
-            
-            // Create point lights for bioluminescence
+
             console.log('💡 Creating lights...');
             this.createBioluminescentLights();
+            this.createUnderwaterFillLights();
             console.log('✅ Lights created');
-            
-            // Create enhanced caustics projector
+
             console.log('💧 Creating caustics projector...');
             this.createCausticsProjector();
             console.log('✅ Caustics projector created');
-            
-            // DEBUG: Removed debug cube for Phase 4 (cartoon aesthetic)
-            // console.log('🔴 Debug cube removed for cartoon aesthetic');
-            
+
             console.log('✅ Scene3D initialized successfully');
         } catch (error) {
             console.error('❌ Scene3D initialization failed:', error);
             throw error;
         }
     }
-    
-    private async createOceanFloor(): Promise<void> {
-        // Enhanced sea floor with better sand-like appearance
-        // Higher resolution for smoother terrain
-        const geometry = new THREE.PlaneGeometry(200, 200, 128, 128);
-        
-        // Enhanced noise function for sand dunes/terrain
-        const positions = geometry.attributes.position;
-        for (let i = 0; i < positions.count; i++) {
-            const x = positions.getX(i);
-            const y = positions.getY(i);
-            
-            // Multi-octave noise for more natural sand dunes
-            const noise1 = Math.sin(x * 0.05) * Math.cos(y * 0.05) * 3;
-            const noise2 = Math.sin(x * 0.15) * Math.cos(y * 0.15) * 1;
-            const noise3 = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.5;
-            const combinedNoise = noise1 + noise2 + noise3;
-            
-            positions.setZ(i, combinedNoise);
-        }
-        geometry.computeVertexNormals();
-        
-        // Cartoon sand material - bright yellow/orange with cel shading
-        const material = new THREE.MeshToonMaterial({
-            color: 0xffcc88, // Bright cartoon sand (yellow-orange)
-            emissive: 0x332200,
-            emissiveIntensity: 0.2
-        });
-        
-        // Create gradient texture for cel shading
-        const gradientTexture = new THREE.DataTexture(
-            new Uint8Array([0, 0, 0, 128, 128, 128, 255, 255, 255]),
-            3, 1,
-            THREE.RGBFormat
-        );
-        gradientTexture.needsUpdate = true;
-        material.gradientMap = gradientTexture;
-        
-        // Apply caustics to ocean floor
-        this.waterCaustics.applyToMaterial(material);
-        
-        this.oceanFloor = new THREE.Mesh(geometry, material);
-        this.oceanFloor.rotation.x = -Math.PI / 2;
-        this.oceanFloor.position.y = -20;
-        this.oceanFloor.receiveShadow = true;
-        this.scene.add(this.oceanFloor);
-        
-        // Add physics body for ocean floor
-        const floorShape = new CANNON.Plane();
-        const floorBody = new CANNON.Body({ mass: 0 });
-        floorBody.addShape(floorShape);
-        floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        floorBody.position.set(0, -20, 0);
-        this.physicsWorld.addBody(floorBody);
-        
-        console.log('✅ Enhanced sea floor created with sand-like terrain');
-    }
-    
-    private createParticles(): void {
-        const particleCount = 1000; // Increased for better effect
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const sizes = new Float32Array(particleCount);
-        const velocities = new Float32Array(particleCount * 3);
-        
-        for (let i = 0; i < particleCount; i++) {
-            const i3 = i * 3;
-            
-            // Random positions in a sphere
-            const radius = 30 + Math.random() * 120;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-            
-            positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
-            positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-            positions[i3 + 2] = radius * Math.cos(phi);
-            
-            // Random velocities for movement
-            velocities[i3] = (Math.random() - 0.5) * 0.5;
-            velocities[i3 + 1] = (Math.random() - 0.5) * 0.3;
-            velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
-            
-            // Enhanced bioluminescent colors with more variety
-            const colorChoice = Math.random();
-            if (colorChoice < 0.25) {
-                colors[i3] = 0.1; colors[i3 + 1] = 0.9; colors[i3 + 2] = 1.0; // Bright Cyan
-            } else if (colorChoice < 0.5) {
-                colors[i3] = 0.0; colors[i3 + 1] = 0.4; colors[i3 + 2] = 0.9; // Deep Blue
-            } else if (colorChoice < 0.75) {
-                colors[i3] = 0.7; colors[i3 + 1] = 0.1; colors[i3 + 2] = 0.9; // Purple
-            } else {
-                colors[i3] = 0.0; colors[i3 + 1] = 0.8; colors[i3 + 2] = 0.6; // Teal
-            }
-            
-            sizes[i] = Math.random() * 1.5 + 0.5;
-        }
-        
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-        (geometry as any).userData.velocities = velocities; // Store velocities
-        
-        const material = new THREE.PointsMaterial({
-            size: 0.8,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending,
-            sizeAttenuation: true,
-            depthWrite: false
-        });
-        
-        this.particles = new THREE.Points(geometry, material);
-        this.scene.add(this.particles);
-    }
-    
-    private createBioluminescentLights(): void {
-        // Create several point lights for bioluminescent creatures
-        // These could also have associated sounds (creature calls, etc.)
-        for (let i = 0; i < 10; i++) {
-            const light = new THREE.PointLight(0x00ffff, 0.5, 30);
-            light.position.set(
-                (Math.random() - 0.5) * 100,
-                (Math.random() - 0.5) * 50,
-                (Math.random() - 0.5) * 100
-            );
-            this.scene.add(light);
-            this.pointLights.push(light);
-            
-            // Store position for potential audio attachment
-            (light as any).audioPosition = light.position.clone();
-        }
-    }
-    
-    getBioluminescentPositions(): THREE.Vector3[] {
-        return this.pointLights.map(light => light.position.clone());
-    }
-    
-    update(deltaTime: number): void {
-        this.time += deltaTime;
-        
-        // Animate particles with enhanced movement
-        if (this.particles) {
-            const positions = this.particles.geometry.attributes.position;
-            const velocities = (this.particles.geometry as any).userData.velocities;
-            
-            if (velocities) {
-                for (let i = 0; i < positions.count; i++) {
-                    const i3 = i * 3;
-                    
-                    // Update position based on velocity
-                    positions.array[i3] += velocities[i3] * deltaTime;
-                    positions.array[i3 + 1] += velocities[i3 + 1] * deltaTime;
-                    positions.array[i3 + 2] += velocities[i3 + 2] * deltaTime;
-                    
-                    // Add gentle floating motion
-                    positions.array[i3 + 1] += Math.sin(this.time * 0.5 + i) * 0.005;
-                    
-                    // Wrap around if out of bounds
-                    const radius = Math.sqrt(
-                        positions.array[i3] ** 2 + 
-                        positions.array[i3 + 1] ** 2 + 
-                        positions.array[i3 + 2] ** 2
-                    );
-                    if (radius > 150) {
-                        positions.array[i3] *= 0.8;
-                        positions.array[i3 + 1] *= 0.8;
-                        positions.array[i3 + 2] *= 0.8;
-                    }
-                }
-                positions.needsUpdate = true;
-            }
-        }
-        
-        // Animate bioluminescent lights
-        this.pointLights.forEach((light, i) => {
-            const pulse = Math.sin(this.time * 2 + i) * 0.3 + 0.7;
-            light.intensity = 0.5 * pulse;
-            light.position.y += Math.sin(this.time + i) * 0.02;
-        });
-        
-        // Animate directional light (sun rays)
-        this.directionalLight.position.x = Math.sin(this.time * 0.1) * 50;
-        this.directionalLight.position.z = Math.cos(this.time * 0.1) * 50;
-        
-        // Update water caustics
-        this.waterCaustics.update(deltaTime);
-        
-        // Animate caustics projector
-        if (this.causticsProjector) {
-            // Move projector in circular pattern
-            const radius = 30;
-            this.causticsProjector.position.x = Math.sin(this.time * 0.1) * radius;
-            this.causticsProjector.position.z = Math.cos(this.time * 0.1) * radius;
-            this.causticsProjector.position.y = 20;
-            
-            // Animate texture offset for moving caustics
-            if (this.causticsTexture) {
-                this.causticsTexture.offset.x += deltaTime * 0.1;
-                this.causticsTexture.offset.y += deltaTime * 0.05;
-                if (this.causticsTexture.offset.x > 1) this.causticsTexture.offset.x -= 1;
-                if (this.causticsTexture.offset.y > 1) this.causticsTexture.offset.y -= 1;
-            }
-        }
-    }
-    
+
     /**
-     * Create animated caustics projector for enhanced underwater lighting
+     * Procedural sand grain albedo map.
      */
-    private createCausticsProjector(): void {
-        // Create caustics texture (procedural noise pattern)
+    private createSandTexture(): THREE.CanvasTexture {
         const size = 512;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d')!;
-        
-        // Create noise pattern for caustics
+
+        // Base sand
+        ctx.fillStyle = '#c9b896';
+        ctx.fillRect(0, 0, size, size);
+
+        // Grain noise
+        const img = ctx.getImageData(0, 0, size, size);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const n = (Math.random() - 0.5) * 48;
+            d[i] = Math.min(255, Math.max(0, d[i] + n));
+            d[i + 1] = Math.min(255, Math.max(0, d[i + 1] + n * 0.9));
+            d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + n * 0.7));
+        }
+        ctx.putImageData(img, 0, 0);
+
+        // Speckles / shell flecks
+        for (let i = 0; i < 1200; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const r = 0.5 + Math.random() * 2.2;
+            const shade = 160 + Math.floor(Math.random() * 70);
+            ctx.fillStyle = `rgba(${shade}, ${shade - 20}, ${shade - 40}, ${0.15 + Math.random() * 0.35})`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Subtle darker patches
+        for (let i = 0; i < 40; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const r = 20 + Math.random() * 60;
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(90, 70, 45, 0.12)');
+            g.addColorStop(1, 'rgba(90, 70, 45, 0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(24, 24);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 4;
+        return tex;
+    }
+
+    private smoothstep(edge0: number, edge1: number, x: number): number {
+        const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+        return t * t * (3 - 2 * t);
+    }
+
+    private async createOceanFloor(): Promise<void> {
+        // Terrain resolution from quality tier
+        const qc =
+            typeof window !== 'undefined' ? (window as any).qualityConfig : null;
+        const segs =
+            qc && typeof qc.terrainSegments === 'number' ? qc.terrainSegments : 256;
+        const size = 420; // bigger world for birthday archipelago
+        const geometry = new THREE.PlaneGeometry(size, size, segs, segs);
+
+        const positions = geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+            const x = positions.getX(i);
+            const y = positions.getY(i);
+            const dist = Math.sqrt(x * x + y * y);
+
+            // Multi-octave deep sand dunes (open ocean is quieter)
+            const n1 = Math.sin(x * 0.028) * Math.cos(y * 0.028) * 1.6;
+            const n2 = Math.sin(x * 0.09 + 1.7) * Math.cos(y * 0.08) * 0.7;
+            const n3 = Math.sin(x * 0.22) * Math.cos(y * 0.24 + 0.5) * 0.28;
+            let h = n1 + n2 + n3;
+
+            // Discrete reef islands only (open water between stays deep)
+            let reefH = 0;
+            let reefW = 0;
+            for (const reef of REEF_ZONES) {
+                const dx = x - reef.x;
+                const dy = y - reef.z; // plane local Y is world Z
+                const d = Math.sqrt(dx * dx + dy * dy);
+                const inner = reef.radius * 0.75;
+                const outer = reef.radius * 1.4;
+                let w = 0;
+                if (d <= inner) w = 1;
+                else if (d < outer) {
+                    const t = (d - inner) / (outer - inner);
+                    w = 1 - t * t * (3 - 2 * t);
+                }
+                if (w > 0) {
+                    const target = reef.shelfY - FLOOR_Y;
+                    const micro =
+                        Math.sin(dx * 0.25) * Math.cos(dy * 0.22) * 0.3;
+                    reefH += (target + micro) * w;
+                    reefW += w;
+                }
+            }
+            if (reefW > 0) {
+                const nw = Math.min(1, reefW);
+                h = h * (1 - nw * 0.9) + (reefH / reefW) * nw;
+            }
+
+            positions.setZ(i, h);
+        }
+        geometry.computeVertexNormals();
+
+        // Prefer Poly Haven coast sand (CC0); fallback procedural canvas
+        await AssetLibrary.get().loadAll();
+        const art = AssetLibrary.get().sand;
+        const sandMap = art.map || this.createSandTexture();
+        const causticsMap = this.waterCaustics.getTexture();
+
+        this.sandMaterial = new THREE.MeshStandardMaterial({
+            color: art.map ? 0xffffff : 0xd4c4a0,
+            map: sandMap,
+            normalMap: art.normalMap || undefined,
+            normalScale: new THREE.Vector2(1.1, 1.1),
+            roughnessMap: art.roughnessMap || undefined,
+            roughness: art.roughnessMap ? 1.0 : 0.92,
+            metalness: 0.02,
+            emissive: new THREE.Color(0x1a4455),
+            emissiveMap: causticsMap,
+            // Cap caustic emissive so seafloor stays realistic
+            emissiveIntensity: 0.18,
+            envMapIntensity: 0.45,
+        });
+
+        this.oceanFloor = new THREE.Mesh(geometry, this.sandMaterial);
+        this.oceanFloor.rotation.x = -Math.PI / 2;
+        this.oceanFloor.position.y = FLOOR_Y;
+        this.oceanFloor.receiveShadow = true;
+        this.oceanFloor.castShadow = false;
+        this.oceanFloor.name = 'OceanFloor';
+        this.scene.add(this.oceanFloor);
+
+        // Physics plane at visual base height
+        const floorShape = new CANNON.Plane();
+        this.floorBody = new CANNON.Body({ mass: 0 });
+        this.floorBody.addShape(floorShape);
+        this.floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        this.floorBody.position.set(0, FLOOR_Y, 0);
+        this.physicsWorld.addBody(this.floorBody);
+
+        console.log(
+            `✅ Seafloor: ${segs}x${segs} segs, base Y=${FLOOR_Y}, reef shelf ~Y=${SHELF_Y} r=${SHELF_RADIUS}`
+        );
+    }
+
+    private createWaterSurface(): void {
+        const geo = new THREE.PlaneGeometry(480, 480, 64, 64);
+        const mat = new THREE.MeshPhysicalMaterial({
+            color: 0x1a6a8a,
+            transparent: true,
+            opacity: 0.35,
+            roughness: 0.15,
+            metalness: 0.1,
+            transmission: 0.55,
+            thickness: 1.5,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        this.waterSurface = new THREE.Mesh(geo, mat);
+        this.waterSurface.rotation.x = -Math.PI / 2;
+        this.waterSurface.position.y = SURFACE_Y;
+        this.waterSurface.renderOrder = 2;
+        this.waterSurface.name = 'WaterSurface';
+        // Store base positions for ripple animation
+        const pos = geo.attributes.position;
+        const base = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+            base[i * 3] = pos.getX(i);
+            base[i * 3 + 1] = pos.getY(i);
+            base[i * 3 + 2] = pos.getZ(i);
+        }
+        (geo as any).userData.basePositions = base;
+        this.scene.add(this.waterSurface);
+    }
+
+    private createParticles(): void {
+        const qc =
+            typeof window !== 'undefined' ? (window as any).qualityConfig : null;
+        const particleCount =
+            qc && typeof qc.marineSnow === 'number' ? qc.marineSnow : 2400;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        this.particleVelocities = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            // Volume around play space + shelf
+            positions[i3] = (Math.random() - 0.5) * 100;
+            positions[i3 + 1] = FLOOR_Y + 1 + Math.random() * (SURFACE_Y - FLOOR_Y - 2);
+            positions[i3 + 2] = (Math.random() - 0.5) * 100;
+
+            this.particleVelocities[i3] = (Math.random() - 0.5) * 0.25;
+            this.particleVelocities[i3 + 1] = (Math.random() - 0.5) * 0.12;
+            this.particleVelocities[i3 + 2] = (Math.random() - 0.5) * 0.25;
+
+            // Soft white / cyan marine snow
+            const cold = Math.random();
+            if (cold < 0.55) {
+                colors[i3] = 0.85;
+                colors[i3 + 1] = 0.95;
+                colors[i3 + 2] = 1.0;
+            } else if (cold < 0.85) {
+                colors[i3] = 0.55;
+                colors[i3 + 1] = 0.9;
+                colors[i3 + 2] = 1.0;
+            } else {
+                colors[i3] = 1.0;
+                colors[i3 + 1] = 1.0;
+                colors[i3 + 2] = 1.0;
+            }
+            sizes[i] = 0.15 + Math.random() * 0.55;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.35,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.55,
+            blending: THREE.AdditiveBlending,
+            sizeAttenuation: true,
+            depthWrite: false
+        });
+
+        this.particles = new THREE.Points(geometry, material);
+        this.particles.name = 'MarineSnow';
+        this.scene.add(this.particles);
+    }
+
+    private createBioluminescentLights(): void {
+        for (let i = 0; i < 8; i++) {
+            const light = new THREE.PointLight(0x66e0ff, 0.35, 28);
+            const a = Math.random() * Math.PI * 2;
+            const r = 8 + Math.random() * 30;
+            light.position.set(
+                Math.cos(a) * r,
+                SHELF_Y + 1 + Math.random() * 8,
+                Math.sin(a) * r
+            );
+            this.scene.add(light);
+            this.pointLights.push(light);
+            (light as any).audioPosition = light.position.clone();
+        }
+    }
+
+    private createUnderwaterFillLights(): void {
+        // Cyan fills over the reef for readable underwater lighting
+        const fills: Array<[number, number, number, number]> = [
+            [0, 6, 0, 0.4],
+            [12, 4, -8, 0.28],
+            [-10, 5, 10, 0.28],
+            [0, 12, 0, 0.22]
+        ];
+        for (const [x, y, z, intensity] of fills) {
+            const l = new THREE.PointLight(0x55ccee, intensity, 45);
+            l.position.set(x, y, z);
+            this.scene.add(l);
+            this.underwaterFills.push(l);
+        }
+    }
+
+    getBioluminescentPositions(): THREE.Vector3[] {
+        return this.pointLights.map((light) => light.position.clone());
+    }
+
+    /**
+     * Animate caustics, kelp, particles, surface ripples, fog by depth.
+     * @param cameraPosition optional — when provided, fog density scales with depth
+     */
+    update(deltaTime: number, cameraPosition?: THREE.Vector3): void {
+        this.time += deltaTime;
+
+        // Marine snow drift
+        if (this.particles && this.particleVelocities) {
+            const positions = this.particles.geometry.attributes.position;
+            const vel = this.particleVelocities;
+            for (let i = 0; i < positions.count; i++) {
+                const i3 = i * 3;
+                positions.array[i3] += vel[i3] * deltaTime;
+                positions.array[i3 + 1] +=
+                    vel[i3 + 1] * deltaTime + Math.sin(this.time * 0.4 + i * 0.01) * 0.004;
+                positions.array[i3 + 2] += vel[i3 + 2] * deltaTime;
+
+                // Wrap volume
+                if (positions.array[i3] > 50) positions.array[i3] = -50;
+                if (positions.array[i3] < -50) positions.array[i3] = 50;
+                if (positions.array[i3 + 2] > 50) positions.array[i3 + 2] = -50;
+                if (positions.array[i3 + 2] < -50) positions.array[i3 + 2] = 50;
+                if (positions.array[i3 + 1] > SURFACE_Y - 1) {
+                    positions.array[i3 + 1] = FLOOR_Y + 1;
+                }
+                if (positions.array[i3 + 1] < FLOOR_Y + 0.5) {
+                    positions.array[i3 + 1] = SURFACE_Y - 2;
+                }
+            }
+            positions.needsUpdate = true;
+        }
+
+        // Bioluminescent pulse
+        this.pointLights.forEach((light, i) => {
+            const pulse = Math.sin(this.time * 1.6 + i) * 0.25 + 0.75;
+            light.intensity = 0.35 * pulse;
+            light.position.y += Math.sin(this.time * 0.8 + i) * 0.01;
+        });
+
+        // Slow sun drift
+        this.directionalLight.position.x = 40 + Math.sin(this.time * 0.05) * 12;
+        this.directionalLight.position.z = 30 + Math.cos(this.time * 0.05) * 12;
+
+        // Caustics
+        this.waterCaustics.update(deltaTime);
+        if (this.sandMaterial) {
+            // Subtle caustic pulse, hard-capped at 0.25 for realistic seafloor
+            this.sandMaterial.emissiveIntensity = Math.min(
+                0.25,
+                0.18 + Math.sin(this.time * 0.7) * 0.06
+            );
+        }
+
+        // Caustics projector orbit
+        if (this.causticsProjector) {
+            const radius = 18;
+            this.causticsProjector.position.x = Math.sin(this.time * 0.08) * radius;
+            this.causticsProjector.position.z = Math.cos(this.time * 0.08) * radius;
+            this.causticsProjector.position.y = SURFACE_Y - 2;
+            this.causticsProjector.target.position.set(0, SHELF_Y, 0);
+            this.causticsProjector.target.updateMatrixWorld();
+
+            if (this.causticsTexture) {
+                this.causticsTexture.offset.x += deltaTime * 0.08;
+                this.causticsTexture.offset.y += deltaTime * 0.04;
+                if (this.causticsTexture.offset.x > 1) this.causticsTexture.offset.x -= 1;
+                if (this.causticsTexture.offset.y > 1) this.causticsTexture.offset.y -= 1;
+            }
+        }
+
+        // Water surface ripples
+        if (this.waterSurface) {
+            const geo = this.waterSurface.geometry as THREE.PlaneGeometry;
+            const pos = geo.attributes.position;
+            const base: Float32Array | undefined = (geo as any).userData.basePositions;
+            if (base) {
+                for (let i = 0; i < pos.count; i++) {
+                    const bx = base[i * 3];
+                    const by = base[i * 3 + 1];
+                    const wave =
+                        Math.sin(bx * 0.08 + this.time * 1.2) * 0.15 +
+                        Math.cos(by * 0.1 + this.time * 0.9) * 0.12 +
+                        Math.sin((bx + by) * 0.05 + this.time * 0.6) * 0.08;
+                    pos.setZ(i, base[i * 3 + 2] + wave);
+                }
+                pos.needsUpdate = true;
+                geo.computeVertexNormals();
+            }
+        }
+
+        // Kelp / god rays
+        this.oceanEnv?.update(deltaTime);
+
+        // Depth + open-ocean fog: deep blue between reefs, clearer on shelves
+        if (cameraPosition && this.scene.fog instanceof THREE.FogExp2) {
+            const depth = Math.max(0, SURFACE_Y - cameraPosition.y);
+            const inf = reefInfluence(cameraPosition.x, cameraPosition.z);
+            // Open water: denser deep-blue fog; on reef: lighter, greener
+            const open = 1 - inf;
+            const baseDensity = 0.008 + open * 0.014 + (depth / 50) * 0.012;
+            this.scene.fog.density = baseDensity;
+            // Open ocean → deep blue; reef → cyan-teal
+            const r = 0.02 * inf + 0.02 * open;
+            const g = 0.22 * inf + 0.08 * open;
+            const b = 0.28 * inf + 0.22 * open;
+            this.scene.fog.color.setRGB(r, g, b);
+            if (this.scene.background instanceof THREE.Color) {
+                this.scene.background.setRGB(r * 0.85, g * 0.9, b);
+            }
+        }
+    }
+
+    private createCausticsProjector(): void {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d')!;
+
         const imageData = ctx.createImageData(size, size);
         for (let i = 0; i < imageData.data.length; i += 4) {
             const x = (i / 4) % size;
-            const y = Math.floor((i / 4) / size);
-            const noise = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 0.5 + 0.5;
-            imageData.data[i] = noise * 255;     // R
-            imageData.data[i + 1] = noise * 255; // G
-            imageData.data[i + 2] = noise * 255; // B
-            imageData.data[i + 3] = noise * 200; // A
+            const y = Math.floor(i / 4 / size);
+            const n1 = Math.sin(x * 0.08) * Math.cos(y * 0.09);
+            const n2 = Math.sin(x * 0.15 + y * 0.12) * 0.5;
+            const noise = Math.pow(Math.max(0, (n1 + n2) * 0.5 + 0.5), 2.2);
+            imageData.data[i] = noise * 200;
+            imageData.data[i + 1] = noise * 230;
+            imageData.data[i + 2] = noise * 255;
+            imageData.data[i + 3] = noise * 220;
         }
         ctx.putImageData(imageData, 0, 0);
-        
+
         this.causticsTexture = new THREE.CanvasTexture(canvas);
         this.causticsTexture.wrapS = THREE.RepeatWrapping;
         this.causticsTexture.wrapT = THREE.RepeatWrapping;
-        this.causticsTexture.repeat.set(2, 2);
-        
-        // Create spotlight projector
-        this.causticsProjector = new THREE.SpotLight(0x88ccff, 1.5, 100, Math.PI / 4, 0.3);
-        this.causticsProjector.position.set(0, 20, 0);
-        this.causticsProjector.target.position.set(0, -20, 0);
+        this.causticsTexture.repeat.set(3, 3);
+
+        this.causticsProjector = new THREE.SpotLight(0xaad4ff, 2.2, 120, Math.PI / 3.2, 0.45, 1.2);
+        this.causticsProjector.position.set(0, SURFACE_Y - 2, 0);
+        this.causticsProjector.target.position.set(0, SHELF_Y, 0);
         this.causticsProjector.castShadow = true;
         this.causticsProjector.shadow.mapSize.width = 1024;
         this.causticsProjector.shadow.mapSize.height = 1024;
-        
-        // Apply caustics texture to projector
         (this.causticsProjector as any).map = this.causticsTexture;
-        
+
         this.scene.add(this.causticsProjector);
         this.scene.add(this.causticsProjector.target);
     }
-    
+
     getLightPosition(): THREE.Vector3 {
         return this.directionalLight.position.clone();
+    }
+
+    /** Exposed for systems that need floor height alignment. */
+    getFloorY(): number {
+        return FLOOR_Y;
+    }
+
+    getShelfY(): number {
+        return SHELF_Y;
     }
 }

@@ -10,7 +10,22 @@ import { UpgradeSystem } from './UpgradeSystem';
 import { FishSystem } from './FishSystem';
 import { BubblesSystem } from './BubblesSystem';
 import { QuestSystem } from './QuestSystem';
+import { ConservationWorld } from './ConservationWorld';
 import { useGameStore } from '../stores/GameStore';
+import { initQuality, type QualityConfig } from './QualitySettings';
+import { DiveBudget } from './DiveBudget';
+import { RangerAlertSystem } from './RangerAlertSystem';
+import { getBuddySession, type BuddyPose } from './BuddySession';
+import { AssetLibrary } from './AssetLibrary';
+import { getReefHealthSystem } from './ReefHealthSystem';
+import {
+    animateJasmine,
+    buildJasmineDiver,
+    type JasmineBuild,
+} from './JasmineCharacter';
+
+// Expose store for LevelSystem win awards and other systems that read window.useGameStore
+(window as any).useGameStore = useGameStore;
 
 export class Game {
     private renderer: THREE.WebGLRenderer;
@@ -27,11 +42,21 @@ export class Game {
     private fishSystem: FishSystem;
     private bubblesSystem: BubblesSystem;
     private questSystem: QuestSystem;
+    private conservationWorld: ConservationWorld | null = null;
+    private qualityConfig: QualityConfig;
+    private diveBudget = new DiveBudget();
+    private rangerAlerts = new RangerAlertSystem();
+    private remoteBuddy: THREE.Group | null = null;
+    private remoteBuddyBuild: JasmineBuild | null = null;
+    private remoteBuddyAnimT = 0;
     private currentForce: THREE.Vector3 = new THREE.Vector3();
     private currentTimer: number = 0;
     private _isRunning: boolean = false;
     private animationId: number | null = null;
     private lastTime: number = 0;
+    /** Track which level id already received extra-move bonus this session */
+    private lastExtraMovesLevelId: number | null = null;
+    private surfaceY = 14.5;
     
     get isRunning(): boolean {
         return this._isRunning;
@@ -40,18 +65,30 @@ export class Game {
     constructor(private container: HTMLElement) {
         console.log('🎮 Game constructor started');
         console.log('📦 Container:', container);
+
+        // Quality tier first so all systems can read window.qualityConfig
+        this.qualityConfig = initQuality();
+        (window as any).qualityConfig = this.qualityConfig;
+        console.log(
+            `🎛️ Quality tier: ${this.qualityConfig.tier} (DPR max ${this.qualityConfig.pixelRatioMax}, fish ${this.qualityConfig.fishCount})`
+        );
+
+        // Ensure store is on window early (LevelSystem awards, Swimmer helmet/net)
+        (window as any).useGameStore = useGameStore;
         
         // Create renderer
         console.log('🎨 Creating WebGL renderer...');
         try {
             this.renderer = new THREE.WebGLRenderer({
-                antialias: true,
+                antialias: this.qualityConfig.antialias,
                 alpha: true,
                 powerPreference: 'high-performance'
             });
             this.renderer.setSize(window.innerWidth, window.innerHeight);
-            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            this.renderer.shadowMap.enabled = true;
+            this.renderer.setPixelRatio(
+                Math.min(window.devicePixelRatio, this.qualityConfig.pixelRatioMax)
+            );
+            this.renderer.shadowMap.enabled = this.qualityConfig.shadows;
             this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             this.renderer.outputColorSpace = THREE.SRGBColorSpace;
             this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -63,7 +100,10 @@ export class Game {
             console.log('✅ Renderer created:', {
                 width: window.innerWidth,
                 height: window.innerHeight,
-                canvas: this.renderer.domElement
+                canvas: this.renderer.domElement,
+                pixelRatio: this.renderer.getPixelRatio(),
+                antialias: this.qualityConfig.antialias,
+                shadows: this.qualityConfig.shadows
             });
         } catch (error) {
             console.error('❌ Failed to create renderer:', error);
@@ -112,14 +152,88 @@ export class Game {
         this.levelSystem = new LevelSystem();
         this.upgradeSystem = new UpgradeSystem();
         this.scene3D = new Scene3D(this.scene, this.physicsWorld);
-        this.swimmerController = new SwimmerController(this.camera, this.physicsWorld);
+        this.swimmerController = new SwimmerController(
+            this.camera,
+            this.physicsWorld,
+            this.scene
+        );
         this.blockPuzzleSystem = new BlockPuzzleSystem(this.scene, this.physicsWorld);
         this.fishSystem = new FishSystem(this.scene, this.physicsWorld);
         this.bubblesSystem = new BubblesSystem(this.scene);
         this.questSystem = new QuestSystem();
+        // Dive Budget + Ranger Alerts hooks
+        this.diveBudget.onWarn = (msg) => {
+            (window as any).gameHUD?.showObjectiveBanner?.(msg, 4000);
+            (window as any).DiscoveryToast?.show?.(msg, {
+                icon: '💨',
+                subtitle: 'Surface for a full Dive Budget refill',
+                durationMs: 3500,
+            });
+        };
+        this.diveBudget.onAssist = () => {
+            (window as any).DiscoveryToast?.show?.('Easy does it — floating up for air', {
+                icon: '🫧',
+                subtitle: 'Rangers always surface safely',
+                durationMs: 3000,
+            });
+        };
+        this.diveBudget.onRefill = () => {
+            (window as any).DiscoveryToast?.show?.('Dive Budget refilled!', {
+                icon: '✅',
+                subtitle: 'Ready for another dive',
+                durationMs: 2200,
+            });
+        };
+        this.rangerAlerts.onAlertStart = (a) => {
+            (window as any).gameHUD?.showRangerAlert?.(a);
+            (window as any).DiscoveryToast?.show?.(a.title, {
+                icon: '🚨',
+                subtitle: a.body,
+                durationMs: 4500,
+            });
+            getBuddySession().sendAlert(a.title, a.body);
+        };
+        this.rangerAlerts.onAlertComplete = (a) => {
+            useGameStore.getState().addConservationPoints?.(15, 'ranger_alert');
+            (window as any).DiscoveryToast?.show?.('Alert complete — great teamwork!', {
+                icon: '⭐',
+                subtitle: a.title,
+                durationMs: 3500,
+            });
+            (window as any).gameHUD?.hideRangerAlert?.();
+        };
+        this.rangerAlerts.onAlertExpire = () => {
+            (window as any).gameHUD?.hideRangerAlert?.();
+            (window as any).DiscoveryToast?.show?.('Alert faded — try the next one later', {
+                icon: '🌊',
+                durationMs: 2500,
+            });
+        };
+
+        // Buddy remote avatar
+        const buddy = getBuddySession();
+        buddy.onRemotePose = (pose) => this.applyRemoteBuddyPose(pose);
+        buddy.onRemoteAction = (action) => {
+            if (action === 'boost') this.diveBudget.shareBoost(0.3);
+            if (action === 'clean' || action === 'net') {
+                this.rangerAlerts.report(action === 'net' ? 'net_free' : 'litter');
+            }
+            if (action === 'collect') this.rangerAlerts.report('observe');
+        };
+
+        // Soft-wire conservation props (litter + ghost nets) for Education/CP
+        try {
+            this.conservationWorld = new ConservationWorld(this.scene, this.physicsWorld);
+        } catch (e) {
+            console.warn('⚠️ ConservationWorld create failed:', e);
+            this.conservationWorld = null;
+        }
         
         // Initialize post-processing (after renderer is ready)
         this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
+        if (typeof (this.postProcessing as any).applyQuality === 'function') {
+            this.postProcessing.applyQuality(this.qualityConfig);
+        }
         
         // Connect systems
         this.blockPuzzleSystem.setLevelSystem(this.levelSystem);
@@ -128,16 +242,29 @@ export class Game {
         // Setup resize handler
         window.addEventListener('resize', () => this.onWindowResize());
     }
+
+    getQualityConfig(): QualityConfig {
+        return this.qualityConfig;
+    }
+
+    getSwimmerController(): SwimmerController {
+        return this.swimmerController;
+    }
     
     async init(): Promise<void> {
         console.log('🎮 Game.init() started');
         try {
+            // Art pack first (PBR sand, hero fish GLB)
+            console.log('🎨 Loading art assets (CC0 packs)…');
+            await AssetLibrary.get().loadAll();
+            console.log('✅ Art assets ready');
+
             // Initialize scene
             console.log('🌊 Initializing Scene3D...');
             await this.scene3D.init();
             console.log('✅ Scene3D initialized');
             
-            // Initialize audio (with error handling)
+            // Initialize audio — soft-fail only; never block boot
             console.log('🔊 Initializing AudioManager...');
             try {
                 await this.audioManager.init();
@@ -153,6 +280,69 @@ export class Game {
                 console.log('✅ FishSystem initialized');
             } catch (error) {
                 console.warn('⚠️ FishSystem initialization failed:', error);
+            }
+
+            // Initialize conservation world (litter + ghost nets)
+            console.log('♻️ Initializing ConservationWorld...');
+            try {
+                if (this.conservationWorld) {
+                    await this.conservationWorld.init();
+                    // Bubble SFX + store CP (ConservationSystem can mirror via serialize later)
+                    this.conservationWorld.onCollect = (event) => {
+                        try {
+                            this.bubblesSystem?.emitBubbles?.(event.position, 8);
+                        } catch {
+                            /* optional particles */
+                        }
+                        try {
+                            this.audioManager?.playSound?.('collect');
+                        } catch {
+                            /* soft */
+                        }
+                        try {
+                            const count = event.ids?.length ?? 1;
+                            for (let i = 0; i < count; i++) {
+                                useGameStore.getState().recordCleanup?.(5);
+                                this.rangerAlerts.report('litter');
+                            }
+                            getBuddySession().sendAction('clean');
+                            const pos = this.camera.position;
+                            getReefHealthSystem().reportCare(pos.x, pos.z, 'litter');
+                        } catch {
+                            /* store optional until hydrate */
+                        }
+                        console.log(
+                            `🗑️ Litter collected: ${event.ids.length} (remaining ${this.conservationWorld?.getLitterRemaining?.() ?? '?'})`
+                        );
+                    };
+                    this.conservationWorld.onFree = (event) => {
+                        try {
+                            this.bubblesSystem?.emitBubbles?.(event.position, 12);
+                        } catch {
+                            /* optional particles */
+                        }
+                        try {
+                            this.audioManager?.playSound?.('collect');
+                        } catch {
+                            /* soft */
+                        }
+                        try {
+                            useGameStore.getState().recordRescue?.(10);
+                            this.rangerAlerts.report('net_free');
+                            getBuddySession().sendAction('net');
+                            const pos = this.camera.position;
+                            getReefHealthSystem().reportCare(pos.x, pos.z, 'net');
+                        } catch {
+                            /* store optional until hydrate */
+                        }
+                        console.log(
+                            `🕸️ Ghost net freed: ${event.id} (remaining ${this.conservationWorld?.getNetsRemaining?.() ?? '?'})`
+                        );
+                    };
+                    console.log('✅ ConservationWorld initialized');
+                }
+            } catch (error) {
+                console.warn('⚠️ ConservationWorld initialization failed:', error);
             }
             
             // Initialize block puzzle system
@@ -196,6 +386,10 @@ export class Game {
         }
         
         console.log('▶️ Starting game...');
+        this.diveBudget.reset();
+        this.rangerAlerts.clear();
+        // Profile may have been selected after Game construct — refresh Jasmine nameplate
+        this.swimmerController.refreshDiverIdentity?.();
         
         // Start level 1 if no level selected
         const currentLevel = this.levelSystem.getCurrentLevel();
@@ -211,6 +405,9 @@ export class Game {
         } else {
             console.warn('⚠️ No level selected, will create test blocks');
         }
+
+        // Apply upgrade effects (extra moves, etc.) if LevelSystem exposes an API
+        this.applyUpgradeEffectsToLevel();
         
         // ALWAYS reload blocks to ensure they're created and added to scene
         console.log('📦 Loading blocks for current level...');
@@ -240,9 +437,9 @@ export class Game {
         this._isRunning = true;
         this.lastTime = performance.now();
         
-        // Start audio (after user gesture - game.start() is called on user action)
+        // Start audio (soft-fail only — after user gesture)
         try {
-            this.audioManager.startAudio(); // This will resume context if needed
+            this.audioManager.startAudio();
             this.audioManager.playAmbient();
         } catch (e) {
             console.warn('⚠️ Could not play ambient audio:', e);
@@ -307,7 +504,7 @@ export class Game {
             }
             
             try {
-                this.scene3D.update(deltaTime);
+                this.scene3D.update(deltaTime, this.camera.position);
             } catch (e) {
                 console.error('Scene3D update error:', e);
             }
@@ -315,18 +512,44 @@ export class Game {
             // Update currents (random forces, stronger deeper)
             this.updateCurrents(deltaTime);
             
-            // Update fish system with boids and currents
+            // Update fish system — Respect mood + boids (Jasmine body position)
             try {
-                this.fishSystem.update(deltaTime, this.camera.position, this.currentForce);
+                const gentleness = this.swimmerController.getGentleness?.() ?? 0.7;
+                const jasminePos = this.swimmerController.getPosition();
+                this.fishSystem.update(
+                    deltaTime,
+                    jasminePos,
+                    this.currentForce,
+                    gentleness
+                );
+                this.processWildlifeEvents();
+                (window as any).gameHUD?.updateGentleness?.(gentleness);
             } catch (e) {
                 console.warn('⚠️ FishSystem update error:', e);
             }
             
             // Update bubbles system
             try {
-                this.bubblesSystem.update(deltaTime, this.camera.position);
+                this.bubblesSystem.update(
+                    deltaTime,
+                    this.swimmerController.getPosition()
+                );
             } catch (e) {
                 console.warn('⚠️ BubblesSystem update error:', e);
+            }
+
+            // Update conservation props (litter bob, net dissolve, freed fish)
+            try {
+                this.conservationWorld?.update?.(deltaTime);
+            } catch (e) {
+                console.warn('⚠️ ConservationWorld update error:', e);
+            }
+
+            // Dive Budget + Ranger Alerts + Buddy poses
+            try {
+                this.updateDiveAndAlerts(deltaTime);
+            } catch (e) {
+                console.warn('Dive/Alert update soft-fail', e);
             }
             
             // Apply current forces to blocks and swimmer
@@ -410,21 +633,14 @@ export class Game {
      * Update fog density based on camera depth (deeper = denser fog)
      */
     private updateDepthFog(): void {
-        if (this.scene.fog instanceof THREE.FogExp2) {
-            // Camera Y position: positive = up, negative = down (deeper)
-            // Convert to depth: 0 = surface, negative = deeper
-            const depth = -this.camera.position.y; // Negative Y = deeper
-            const baseDensity = 0.015;
-            const depthMultiplier = Math.max(0, depth / 50); // Increase fog with depth
-            this.scene.fog.density = baseDensity + depthMultiplier * 0.01;
-            
-            // Also darken fog color slightly with depth
-            const depthFactor = Math.min(1, depth / 100);
-            this.scene.fog.color.setRGB(
-                0.0 + depthFactor * 0.05, // R: darker with depth
-                0.07 + depthFactor * 0.03, // G: darker with depth
-                0.13 + depthFactor * 0.02  // B: darker with depth
-            );
+        // Scene3D owns fog with reef/open-ocean blend when update(dt, camera) runs.
+        // Light fallback only if Scene3D fog update unavailable.
+        if (
+            this.scene.fog instanceof THREE.FogExp2 &&
+            !(this.scene3D as any)?.oceanEnv
+        ) {
+            const depth = Math.max(0, -this.camera.position.y);
+            this.scene.fog.density = 0.012 + depth * 0.0003;
         }
     }
     
@@ -432,7 +648,227 @@ export class Game {
      * Get current depth in meters (negative Y = deeper)
      */
     getCurrentDepth(): number {
-        return Math.max(0, -this.camera.position.y);
+        // Depth below surface plane (~15) — use Jasmine body, not chase camera
+        const y = this.swimmerController.getPosition().y;
+        return Math.max(0, this.surfaceY - y);
+    }
+
+    getDiveBudget(): DiveBudget {
+        return this.diveBudget;
+    }
+
+    getRangerAlerts(): RangerAlertSystem {
+        return this.rangerAlerts;
+    }
+
+    private lastSharkToast = 0;
+    private lastStingToast = 0;
+
+    private processWildlifeEvents(): void {
+        const events = this.fishSystem.drainEvents?.() || [];
+        const now = performance.now();
+        for (const ev of events) {
+            if (ev.type === 'shark_respect') {
+                this.swimmerController.applySoftPush?.(ev.dir, ev.strength);
+                if (now - this.lastSharkToast > 7000) {
+                    this.lastSharkToast = now;
+                    (window as any).DiscoveryToast?.show?.(ev.line || 'Too close. Back up.', {
+                        icon: '🦈',
+                        subtitle: 'She’s confident — not angry. Give space.',
+                        durationMs: 3400,
+                    });
+                }
+            } else if (ev.type === 'jelly_tingle' || (ev as any).type === 'jelly_sting') {
+                const amount = (ev as any).amount ?? 0.04;
+                this.diveBudget.applySting?.(amount);
+                if (now - this.lastStingToast > 2800) {
+                    this.lastStingToast = now;
+                    (window as any).DiscoveryToast?.show?.('Soft tingle — tentacles', {
+                        icon: '🎐',
+                        subtitle: 'They don’t attack. They simply exist. Swim around.',
+                        durationMs: 3000,
+                    });
+                }
+                try {
+                    this.bubblesSystem?.emitBubbles?.(this.camera.position.clone(), 8);
+                } catch {
+                    /* optional */
+                }
+            } else if (ev.type === 'comic_boop') {
+                (window as any).DiscoveryToast?.show?.('Boop!', {
+                    icon: '🐠',
+                    subtitle: 'A friend said hello — that’s trust.',
+                    durationMs: 2000,
+                });
+            } else if (ev.type === 'ink_puff') {
+                (window as any).DiscoveryToast?.show?.('Ink cloud!', {
+                    icon: '🐙',
+                    subtitle: 'Startled — not mean. Give it a moment.',
+                    durationMs: 2600,
+                });
+                try {
+                    this.bubblesSystem?.emitBubbles?.(
+                        new THREE.Vector3(ev.x, ev.y, ev.z),
+                        16
+                    );
+                } catch {
+                    /* optional */
+                }
+            } else if (ev.type === 'thrash_local') {
+                // Throttled reef stress — not every frame
+                if (now - (this as any)._lastThrashFx > 800) {
+                    (this as any)._lastThrashFx = now;
+                    getReefHealthSystem().reportThrash(ev.x, ev.z);
+                    this.diveBudget.applyThrashDrain?.(0.05, 0.4);
+                }
+            } else if (ev.type === 'trust_toast') {
+                (window as any).DiscoveryToast?.show?.(ev.line, {
+                    icon: ev.icon || '💙',
+                    durationMs: 2800,
+                });
+            } else if (ev.type === 'remembers_you') {
+                (window as any).DiscoveryToast?.show?.(ev.line, {
+                    icon: ev.icon === 'manta' ? '🐋' : ev.icon || '💙',
+                    subtitle: 'Dive memory — she never forgot.',
+                    durationMs: 4200,
+                });
+            } else if (ev.type === 'reef_gathers') {
+                // Emotional high point — no XP explosion, no chest
+                (window as any).DiscoveryToast?.show?.('The reef accepts you', {
+                    icon: '🌊',
+                    subtitle: `${ev.reefName} — they all came.`,
+                    durationMs: 7000,
+                });
+                this.showReefGathers(ev.reefName);
+            } else if (ev.type === 'birthday_pearl') {
+                (window as any).DiscoveryToast?.show?.(ev.message, {
+                    icon: '✨',
+                    subtitle: 'An old turtle remembered you…',
+                    durationMs: 8000,
+                });
+                // Proper birthday card
+                this.showBirthdayPearl(ev.message);
+                useGameStore.getState().addConservationPoints?.(50, 'birthday_pearl');
+            }
+        }
+    }
+
+    /** Soft silent moment — whole reef swims around Jasmine */
+    private showReefGathers(reefName: string): void {
+        if (document.getElementById('reef-gathers')) return;
+        const el = document.createElement('div');
+        el.id = 'reef-gathers';
+        el.className = 'reef-gathers';
+        el.innerHTML = `
+          <div class="reef-gathers-card">
+            <div class="rg-soft">🐟 🐢 🐋 🐠</div>
+            <h2>The reef accepts you</h2>
+            <p>${reefName.replace(/</g, '')}</p>
+            <p class="rg-whisper">No chest. No XP. Just belonging.</p>
+          </div>
+        `;
+        document.body.appendChild(el);
+        setTimeout(() => el.classList.add('visible'), 40);
+        setTimeout(() => {
+            el.classList.remove('visible');
+            setTimeout(() => el.remove(), 800);
+        }, 6500);
+    }
+
+    private showBirthdayPearl(message: string): void {
+        if (document.getElementById('birthday-pearl')) return;
+        const el = document.createElement('div');
+        el.id = 'birthday-pearl';
+        el.className = 'birthday-pearl';
+        el.innerHTML = `
+          <div class="birthday-pearl-card">
+            <div class="bp-glow">✨🐢✨</div>
+            <h2>${message.replace(/</g, '')}</h2>
+            <p>No map pin. No quest. Just trust.</p>
+            <button type="button" id="bp-close">Keep diving</button>
+          </div>
+        `;
+        document.body.appendChild(el);
+        el.querySelector('#bp-close')?.addEventListener('click', () => el.remove());
+        setTimeout(() => el.classList.add('visible'), 50);
+    }
+
+    private updateDiveAndAlerts(dt: number): void {
+        const depth = this.getCurrentDepth();
+        const bodyPos = this.swimmerController.getPosition();
+        const isSurfaced = bodyPos.y >= this.surfaceY - 1.2;
+        const buddy = getBuddySession();
+        let buddyNear = false;
+        if (buddy.remote) {
+            const dx = buddy.remote.x - bodyPos.x;
+            const dy = buddy.remote.y - bodyPos.y;
+            const dz = buddy.remote.z - bodyPos.z;
+            buddyNear = Math.hypot(dx, dy, dz) < 8;
+        }
+
+        const assist = this.diveBudget.update(dt, depth, isSurfaced, buddyNear);
+        if (assist) {
+            // Soft float up — never drowning
+            try {
+                const body = (this.swimmerController as any).physicsBody;
+                if (body?.position) {
+                    body.position.y = Math.min(
+                        this.surfaceY - 0.5,
+                        body.position.y + dt * 3.5
+                    );
+                    if (body.velocity) body.velocity.y = Math.max(body.velocity.y, 2);
+                }
+            } catch {
+                /* soft */
+            }
+        }
+
+        const st = this.diveBudget.getState(depth, isSurfaced);
+        (window as any).gameHUD?.updateDiveBudget?.(st);
+
+        this.rangerAlerts.update(dt, bodyPos.x, bodyPos.z);
+        const alert = this.rangerAlerts.getActive();
+        if (alert) (window as any).gameHUD?.updateRangerAlert?.(alert);
+
+        // Broadcast pose to buddy (Jasmine body, not camera)
+        if (buddy.isActive()) {
+            const euler = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
+            const pos = this.swimmerController.getPosition();
+            buddy.sendPose({
+                x: pos.x,
+                y: pos.y,
+                z: pos.z,
+                yaw: euler.y,
+                pitch: euler.x,
+                air: this.diveBudget.getAir(),
+            });
+        }
+    }
+
+    private ensureRemoteBuddy(): THREE.Group {
+        if (this.remoteBuddy) return this.remoteBuddy;
+        this.remoteBuddyBuild = buildJasmineDiver({
+            suitId: 'buddy',
+            displayName: 'Buddy Ranger',
+            showName: true,
+        });
+        this.remoteBuddy = this.remoteBuddyBuild.group;
+        this.remoteBuddy.name = 'RemoteBuddy';
+        this.scene.add(this.remoteBuddy);
+        return this.remoteBuddy;
+    }
+
+    private applyRemoteBuddyPose(pose: BuddyPose): void {
+        const g = this.ensureRemoteBuddy();
+        g.visible = true;
+        g.position.set(pose.x, pose.y, pose.z);
+        g.rotation.order = 'YXZ';
+        g.rotation.y = pose.yaw;
+        g.rotation.x = pose.pitch * 0.35;
+        if (this.remoteBuddyBuild) {
+            this.remoteBuddyAnimT += 0.016;
+            animateJasmine(this.remoteBuddyBuild, this.remoteBuddyAnimT, 0.6, 0.7);
+        }
     }
     
     /**
@@ -475,59 +911,216 @@ export class Game {
     }
     
     /**
-     * Try to collect fish (raycast from camera)
+     * Apply owned upgrade effects to the current level when possible.
+     * Uses LevelSystem addMoves/setBonusMoves if present; otherwise soft skip.
+     */
+    private applyUpgradeEffectsToLevel(): void {
+        try {
+            const mods = this.upgradeSystem.getGameplayModifiers();
+            const level = this.levelSystem.getCurrentLevel();
+            if (!level || mods.extraMoves <= 0) return;
+
+            // Avoid double-applying bonus for the same level session
+            if (this.lastExtraMovesLevelId === level.id) return;
+
+            const ls = this.levelSystem as any;
+            if (typeof ls.addMoves === 'function') {
+                ls.addMoves(mods.extraMoves);
+                this.lastExtraMovesLevelId = level.id;
+                console.log(`➕ Extra moves applied via addMoves: +${mods.extraMoves}`);
+            } else if (typeof ls.setBonusMoves === 'function') {
+                ls.setBonusMoves(mods.extraMoves);
+                this.lastExtraMovesLevelId = level.id;
+                console.log(`➕ Extra moves applied via setBonusMoves: +${mods.extraMoves}`);
+            } else {
+                // No LevelSystem API — skip without breaking (Agent A may add later)
+                console.log(
+                    `ℹ️ extra_moves owned (+${mods.extraMoves}) but LevelSystem has no addMoves/setBonusMoves API — skipped`
+                );
+            }
+        } catch (e) {
+            console.warn('applyUpgradeEffectsToLevel soft-fail:', e);
+        }
+    }
+
+    /**
+     * Call after external levelSystem.startLevel(...) so upgrade bonuses re-apply.
+     */
+    onLevelStarted(): void {
+        this.lastExtraMovesLevelId = null;
+        this.applyUpgradeEffectsToLevel();
+    }
+
+    /**
+     * Collect fish along camera look direction (E key).
+     * Range = store.netRange + upgrade netRangeBonus.
+     * Fires education discovery toasts + conservation CP on new species.
      */
     collectFish(): boolean {
         const store = useGameStore.getState();
-        const netRange = store.netRange;
-        
+        const mods = this.upgradeSystem.getGameplayModifiers();
+        const netRange = (store.netRange ?? 5) + (mods.netRangeBonus ?? 0);
+
+        // Ray from camera center using actual look direction
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-        
+
         const fish = this.fishSystem.raycastForFish(raycaster, netRange);
         if (fish) {
             const depth = Math.max(0, -this.camera.position.y);
-            
-            // Add to collection
-            const isNew = store.addFish({
-                type: fish.type,
-                name: fish.type.charAt(0).toUpperCase() + fish.type.slice(1),
+            const speciesId = (fish as any).speciesId || fish.type;
+
+            // Education: resolve species card + toast before mutating store
+            let discovery: {
+                isNew: boolean;
+                toastText: string;
+                card: { name: string; emoji: string; funFact: string } | null;
+            } | null = null;
+            try {
+                // Dynamic import path avoided — use singleton getters if present
+                const eduMod = (window as any).educationSystem;
+                if (eduMod && typeof eduMod.discoverSpecies === 'function') {
+                    discovery = eduMod.discoverSpecies(speciesId, depth);
+                }
+            } catch (e) {
+                console.warn('Education discover soft-fail:', e);
+            }
+
+            const displayName =
+                discovery?.card?.name ||
+                fish.type.charAt(0).toUpperCase() + fish.type.slice(1);
+            const funFact = discovery?.card?.funFact || '';
+
+            const isNewType = store.addFish({
+                type: speciesId,
+                name: displayName,
                 depth: depth,
                 timestamp: Date.now(),
-                description: `A ${fish.type} caught at ${depth.toFixed(0)}m depth.`
-            });
-            
+                description:
+                    funFact ||
+                    `A ${displayName} observed at ${depth.toFixed(0)}m depth.`,
+            }) as unknown as boolean;
+
+            // Observe quality from Trust + gentleness (kids understand "you scared it")
+            const gentleness = this.swimmerController.getGentleness?.() ?? 0.7;
+            const moodInfo = this.fishSystem.getNearestFishMood?.(this.camera.position, 8);
+            const mood = moodInfo?.mood ?? 'calm';
+            const trait = moodInfo?.trait ?? '';
+            let observeTier: 'scared' | 'quick' | 'calm' | 'trusting' = 'quick';
+            let cpBonus = 2;
+            if (mood === 'scared' || gentleness < 0.35) {
+                observeTier = 'scared';
+                cpBonus = 1;
+            } else if (
+                gentleness > 0.78 &&
+                (mood === 'trusting' || mood === 'curious' || (moodInfo?.trust ?? 0) > 0.7)
+            ) {
+                observeTier = 'trusting';
+                cpBonus = 7;
+            } else if (gentleness > 0.55) {
+                observeTier = 'calm';
+                cpBonus = 4;
+            }
+
+            // Build dive memory on this individual
+            if (moodInfo?.fish && observeTier !== 'scared') {
+                const q =
+                    observeTier === 'trusting' ? 1 : observeTier === 'calm' ? 0.6 : 0.3;
+                this.fishSystem.recordGentleObserve?.(moodInfo.fish, q);
+            }
+
+            // Explicit discover + CP for new species
+            if (isNewType !== false) {
+                const wasNew = store.discoverSpeciesId?.(speciesId);
+                if (wasNew) {
+                    store.addConservationPoints?.(8 + cpBonus, `discover:${speciesId}`);
+                } else {
+                    store.addConservationPoints?.(cpBonus, `observe_${observeTier}`);
+                }
+            }
+
+            if (observeTier === 'trusting' || observeTier === 'calm') {
+                getReefHealthSystem().reportCare(
+                    this.camera.position.x,
+                    this.camera.position.z,
+                    'observe_calm'
+                );
+            }
+
+            const tierLabel =
+                observeTier === 'trusting'
+                    ? trait
+                        ? `${trait} — and they trust you`
+                        : 'They trust you'
+                    : observeTier === 'calm'
+                      ? 'Quiet study'
+                      : observeTier === 'scared'
+                        ? 'You scared it — sit still…'
+                        : 'Quick look';
+
+            // Toast (DiscoveryToast if wired on window)
+            try {
+                const Toast = (window as any).DiscoveryToast;
+                if (Toast && typeof Toast.show === 'function') {
+                    if (discovery?.isNew || isNewType) {
+                        Toast.show(discovery?.toastText || `New discovery: ${displayName}!`, {
+                            icon: discovery?.card?.emoji || '🐠',
+                            subtitle: `${tierLabel} · ${
+                                funFact
+                                    ? funFact.slice(0, 90) + (funFact.length > 90 ? '…' : '')
+                                    : 'Marinepedia updated'
+                            }`,
+                            durationMs: 4200,
+                        });
+                    } else {
+                        Toast.show(tierLabel, {
+                            icon: observeTier === 'trusting' ? '💙' : '👁️',
+                            subtitle: `${displayName}${
+                                trait ? ` · ${trait}` : ''
+                            }${funFact ? ' — ' + funFact.slice(0, 70) : ''}`,
+                            durationMs: 3000,
+                        });
+                    }
+                }
+            } catch (e) {
+                /* toast optional */
+            }
+
             // Update quests
             if (this.questSystem) {
                 this.questSystem.updateQuestProgress('catch_fish', 1);
-                if (fish.type === 'clownfish') {
+                if (fish.type === 'clownfish' || speciesId === 'clownfish') {
                     this.questSystem.updateQuestProgress('catch_clownfish', 1);
-                } else if (fish.type === 'angelfish') {
+                } else if (fish.type === 'angelfish' || speciesId === 'angelfish') {
                     this.questSystem.updateQuestProgress('catch_angelfish', 1);
                 }
             }
-            
-            // Play catch sound
+
+            // Play catch sound (soft-fail)
             try {
                 this.audioManager.playSound('collect');
             } catch (e) {
                 console.warn('Could not play collect sound:', e);
             }
-            
-            // Remove fish from scene
+
             this.fishSystem.removeFish(fish);
-            
-            console.log(`🎣 Fish caught: ${fish.type}! ${this.fishSystem.getFishes().length} remaining`);
-            if (isNew) {
-                console.log(`📚 New fish added to Marinepedia!`);
+            this.rangerAlerts.report('observe');
+            getBuddySession().sendAction('collect');
+
+            // Bubbles celebration
+            try {
+                this.bubblesSystem?.emitBubbles?.(this.camera.position.clone(), 12);
+            } catch {
+                /* optional */
             }
-            
+
+            console.log(`🎣 Fish caught: ${speciesId}! ${this.fishSystem.getFishes().length} remaining`);
             return true;
         }
-        
+
         return false;
     }
-    
+
     /**
      * Update quest progress for depth
      */
@@ -536,12 +1129,52 @@ export class Game {
         const depth = this.getCurrentDepth();
         this.questSystem.updateQuestProgress('depth', depth);
     }
-    
+
     getQuestSystem(): QuestSystem {
         return this.questSystem;
     }
-    
+
     getBubblesSystem(): BubblesSystem {
         return this.bubblesSystem;
+    }
+
+    getConservationWorld(): ConservationWorld | null {
+        return this.conservationWorld;
+    }
+
+    /**
+     * Interact key (F): try collect nearby litter + free nearest ghost net.
+     * Fish collect stays on E (collectFish). Soft-fail if ConservationWorld missing.
+     * Returns summary so main/Education can award conservation points (CP).
+     */
+    tryConservationInteract(range: number = 4): {
+        litter: { collected: number; ids: string[] };
+        netFreed: boolean;
+    } {
+        const empty = { litter: { collected: 0, ids: [] as string[] }, netFreed: false };
+        try {
+            const world = this.conservationWorld;
+            if (!world) return empty;
+
+            const pos =
+                typeof this.swimmerController?.getPosition === 'function'
+                    ? this.swimmerController.getPosition()
+                    : this.camera.position.clone();
+
+            let litter = { collected: 0, ids: [] as string[] };
+            if (typeof world.tryCollectLitter === 'function') {
+                litter = world.tryCollectLitter(pos, range);
+            }
+
+            let netFreed = false;
+            if (typeof world.tryFreeNet === 'function') {
+                netFreed = world.tryFreeNet(pos, range);
+            }
+
+            return { litter, netFreed };
+        } catch (e) {
+            console.warn('tryConservationInteract soft-fail:', e);
+            return empty;
+        }
     }
 }

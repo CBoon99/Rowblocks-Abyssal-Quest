@@ -146,11 +146,23 @@ export class LevelSelectUI {
         });
     }
     
-    private selectLevel(levelId: number): void {
+    /**
+     * Public so GameHUD Next Level / Retry can start a level directly.
+     * Refreshes level list first so unlock state is current after a win.
+     */
+    selectLevel(levelId: number): void {
+        this.levels = this.levelSystem.getAllLevels();
         const level = this.levels.find(l => l.id === levelId);
         if (level && level.unlocked) {
             this.onLevelSelect(levelId);
+        } else {
+            console.warn(`[LevelSelectUI] Level ${levelId} is locked or missing`);
         }
+    }
+
+    /** Whether a level id is currently unlocked. */
+    isLevelUnlocked(levelId: number): boolean {
+        return this.levelSystem.isLevelUnlocked(levelId);
     }
     
     private renderLevelCard(level: LevelData): string {

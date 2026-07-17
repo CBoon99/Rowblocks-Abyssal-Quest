@@ -73,6 +73,13 @@ const causticsShader = {
     `
 };
 
+export type PostQualityConfig = {
+    postOutline: boolean;
+    postBloom: boolean;
+    postBloomStrength: number;
+    postCaustics: boolean;
+};
+
 export class PostProcessing {
     private composer: EffectComposer;
     private causticsPass: ShaderPass;
@@ -92,25 +99,9 @@ export class PostProcessing {
         // Base render pass
         const renderPass = new RenderPass(scene, camera);
         this.composer.addPass(renderPass);
-        
-        // Outline pass for cartoon cel shading (black outlines)
-        try {
-            this.outlinePass = new OutlinePass(
-                new THREE.Vector2(window.innerWidth, window.innerHeight),
-                scene,
-                camera
-            );
-            this.outlinePass.edgeStrength = 3.0;
-            this.outlinePass.edgeGlow = 0.0;
-            this.outlinePass.edgeThickness = 1.0;
-            this.outlinePass.pulsePeriod = 0;
-            this.outlinePass.visibleEdgeColor.set(0x000000); // Black outlines
-            this.outlinePass.hiddenEdgeColor.set(0x000000);
-            this.composer.addPass(this.outlinePass);
-            console.log('✅ Toon shading (OutlinePass) applied');
-        } catch (error) {
-            console.warn('⚠️ Could not create OutlinePass:', error);
-        }
+
+        // Outline pass is expensive and not part of the realistic bar — skip by default.
+        // Created only if applyQuality enables postOutline.
         
         // Caustics pass
         this.causticsPass = new ShaderPass(causticsShader);
@@ -120,14 +111,66 @@ export class PostProcessing {
         // Bloom pass for glowing effects
         this.bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            1.5, // strength
+            0.55, // strength (quality-tuned; applyQuality can override)
             0.4, // radius
             0.85 // threshold
         );
         this.composer.addPass(this.bloomPass);
+
+        // Default quality: no outline, soft bloom, caustics on
+        this.applyQuality({
+            postOutline: false,
+            postBloom: true,
+            postBloomStrength: 0.55,
+            postCaustics: true,
+        });
         
         // Update on resize
         window.addEventListener('resize', () => this.onResize());
+    }
+
+    /**
+     * Apply quality-tier post settings (outline/bloom/caustics).
+     * Outline stays off unless explicitly enabled (realistic bar defaults false).
+     */
+    applyQuality(config: PostQualityConfig): void {
+        // Outline: disable always when false; only create if ever enabled
+        if (config.postOutline) {
+            if (!this.outlinePass) {
+                try {
+                    this.outlinePass = new OutlinePass(
+                        new THREE.Vector2(window.innerWidth, window.innerHeight),
+                        this.scene,
+                        this.camera
+                    );
+                    this.outlinePass.edgeStrength = 3.0;
+                    this.outlinePass.edgeGlow = 0.0;
+                    this.outlinePass.edgeThickness = 1.0;
+                    this.outlinePass.pulsePeriod = 0;
+                    this.outlinePass.visibleEdgeColor.set(0x000000);
+                    this.outlinePass.hiddenEdgeColor.set(0x000000);
+                    if (this.selectedObjects.length > 0) {
+                        this.outlinePass.selectedObjects = this.selectedObjects;
+                    }
+                    // Insert after render pass (index 1)
+                    this.composer.passes.splice(1, 0, this.outlinePass);
+                    console.log('✅ OutlinePass created (quality enabled)');
+                } catch (error) {
+                    console.warn('⚠️ Could not create OutlinePass:', error);
+                    this.outlinePass = null;
+                }
+            }
+            if (this.outlinePass) {
+                this.outlinePass.enabled = true;
+            }
+        } else if (this.outlinePass) {
+            this.outlinePass.enabled = false;
+        }
+
+        this.bloomPass.strength = config.postBloomStrength;
+        this.bloomPass.enabled = config.postBloom;
+
+        this.causticsPass.enabled = config.postCaustics;
     }
     
     /**

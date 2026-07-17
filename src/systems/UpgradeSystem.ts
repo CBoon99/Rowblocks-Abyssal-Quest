@@ -10,6 +10,16 @@ export interface Upgrade {
     category: 'ability' | 'powerup' | 'cosmetic';
 }
 
+/** Aggregated gameplay effects derived from owned upgrades. */
+export interface GameplayModifiers {
+    extraMoves: number;
+    undoCount: number;
+    hintCount: number;
+    netRangeBonus: number;
+    lightIntensity: number;
+    swimSpeedMult: number;
+}
+
 export class UpgradeSystem {
     private upgrades: Map<string, Upgrade> = new Map();
     private currency: number = 0; // Pearls
@@ -184,6 +194,11 @@ export class UpgradeSystem {
         
         return true;
     }
+
+    /** Alias for purchaseUpgrade (shop / account callers). */
+    purchase(upgradeId: string): boolean {
+        return this.purchaseUpgrade(upgradeId);
+    }
     
     getUpgradeLevel(upgradeId: string): number {
         return this.ownedUpgrades.get(upgradeId) || 0;
@@ -195,6 +210,28 @@ export class UpgradeSystem {
         
         const level = this.getUpgradeLevel(upgradeId);
         return upgrade.effect(level);
+    }
+
+    /**
+     * Gameplay modifiers from currently owned upgrades.
+     * Used by Game / Swimmer / Level hooks without coupling to upgrade IDs.
+     */
+    getGameplayModifiers(): GameplayModifiers {
+        const extraMovesLevel = this.getUpgradeLevel('extra_moves');
+        const undoLevel = this.getUpgradeLevel('undo');
+        const hintLevel = this.getUpgradeLevel('hint');
+        const sonarLevel = this.getUpgradeLevel('sonar_range');
+        const bioLevel = this.getUpgradeLevel('bioluminescence');
+        const speedLevel = this.getUpgradeLevel('speed_burst');
+
+        return {
+            extraMoves: this.getUpgradeEffect('extra_moves') || extraMovesLevel * 3,
+            undoCount: this.getUpgradeEffect('undo') || undoLevel,
+            hintCount: this.getUpgradeEffect('hint') || hintLevel,
+            netRangeBonus: sonarLevel * 0.75,
+            lightIntensity: this.getUpgradeEffect('bioluminescence') || (100 + bioLevel * 20),
+            swimSpeedMult: 1 + speedLevel * 0.1,
+        };
     }
     
     getAllUpgrades(): Upgrade[] {
@@ -208,6 +245,10 @@ export class UpgradeSystem {
     addCurrency(amount: number): void {
         this.currency += amount;
     }
+
+    setCurrency(amount: number): void {
+        this.currency = Math.max(0, amount);
+    }
     
     getCurrency(): number {
         return this.currency;
@@ -217,5 +258,46 @@ export class UpgradeSystem {
         const upgrade = this.upgrades.get(upgradeId);
         if (!upgrade) return false;
         return this.currency >= upgrade.cost && upgrade.level < upgrade.maxLevel;
+    }
+
+    /**
+     * Serialize pearls + owned upgrade levels for account persistence.
+     */
+    serializeProgress(): { currency: number; upgrades: Record<string, number> } {
+        const upgrades: Record<string, number> = {};
+        this.ownedUpgrades.forEach((level, id) => {
+            upgrades[id] = level;
+        });
+        return {
+            currency: this.currency,
+            upgrades,
+        };
+    }
+
+    /**
+     * Apply saved currency and owned upgrade levels.
+     * Rebuilds catalog so costs match purchased levels (base * 1.5^level).
+     */
+    applyProgress(data: { currency: number; upgrades: Record<string, number> }): void {
+        if (!data) return;
+
+        this.initializeUpgrades();
+        this.ownedUpgrades.clear();
+        this.currency = Math.max(0, data.currency ?? 0);
+
+        const owned = data.upgrades ?? {};
+        for (const [id, rawLevel] of Object.entries(owned)) {
+            const upgrade = this.upgrades.get(id);
+            if (!upgrade) continue;
+
+            const level = Math.max(0, Math.min(upgrade.maxLevel, Math.floor(rawLevel)));
+            for (let i = 0; i < level; i++) {
+                upgrade.level++;
+                upgrade.cost = Math.floor(upgrade.cost * 1.5);
+            }
+            if (level > 0) {
+                this.ownedUpgrades.set(id, upgrade.level);
+            }
+        }
     }
 }

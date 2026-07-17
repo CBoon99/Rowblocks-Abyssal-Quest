@@ -8,6 +8,9 @@ interface Bubble {
     maxAge: number;
 }
 
+/** Water surface Y — bubbles pop when they reach the surface, not mid-water. */
+const SURFACE_Y = 15;
+
 export class BubblesSystem {
     private bubbles: Bubble[] = [];
     private particles: THREE.Points | null = null;
@@ -21,6 +24,12 @@ export class BubblesSystem {
     
     constructor(scene: THREE.Scene) {
         this.scene = scene;
+
+        // Cap from quality tier when available
+        const qc = typeof window !== 'undefined' ? (window as any).qualityConfig : null;
+        if (qc && typeof qc.bubblesMax === 'number' && qc.bubblesMax > 0) {
+            this.maxBubbles = qc.bubblesMax;
+        }
         
         // Create particle system
         this.geometry = new THREE.BufferGeometry();
@@ -101,8 +110,8 @@ export class BubblesSystem {
             // Update age
             bubble.age += deltaTime;
             
-            // Remove if too old or reached surface (y > 0)
-            if (bubble.age > bubble.maxAge || bubble.position.y > 0) {
+            // Remove if too old or reached water surface (y > 15)
+            if (bubble.age > bubble.maxAge || bubble.position.y > SURFACE_Y) {
                 bubblesToRemove.push(index);
             }
         });

@@ -64,6 +64,19 @@ export class UpgradeShopUI {
                     if (this.upgradeSystem.purchaseUpgrade(upgrade.id)) {
                         this.render();
                         this.showPurchaseEffect(upgrade);
+                        // Persist pearls / upgrade levels
+                        try {
+                            const account = (window as any).accountSystem;
+                            const game = (window as any).game;
+                            if (account?.autoSave && game) {
+                                account.autoSave({
+                                    levelSystem: game.getLevelSystem(),
+                                    upgradeSystem: this.upgradeSystem,
+                                });
+                            }
+                        } catch (e) {
+                            console.warn('[UpgradeShopUI] autoSave after purchase failed:', e);
+                        }
                     } else {
                         this.showError('Not enough pearls!');
                     }

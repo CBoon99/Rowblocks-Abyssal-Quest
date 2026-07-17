@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Rowblocks: Abyssal Quest - 3D</title>
     <link rel="stylesheet" href="/src/ui/styles.css">
     <style>
@@ -17,24 +17,28 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #000;
             color: #fff;
+            touch-action: none;
         }
         
         #game-container {
             width: 100vw;
             height: 100vh;
             position: relative;
+            touch-action: none;
         }
         
         #canvas-container {
             width: 100%;
             height: 100%;
             display: block;
+            touch-action: none;
         }
         
         #canvas-container canvas {
             display: block;
             width: 100%;
             height: 100%;
+            touch-action: none;
         }
         
         #ui-overlay {
@@ -172,6 +176,7 @@
         <div id="canvas-container"></div>
         
         <div id="ui-overlay">
+            <div id="profile-select-container" style="display:none;"></div>
             <div id="game-hud-container"></div>
             <div id="level-select-container" style="display: none;"></div>
             <div id="upgrade-shop-container" style="display: none;"></div>
@@ -191,9 +196,14 @@
                     <p><strong>Mouse</strong> - Look around</p>
                     <p><strong>Space</strong> - Swim up</p>
                     <p><strong>Shift</strong> - Swim down</p>
-                    <p><strong>Click</strong> - Select block row/plane</p>
+                    <p><strong>E</strong> - Observe / collect fish (learn facts!)</p>
+                    <p><strong>F</strong> - Clean litter / free ghost nets</p>
+                    <p><strong>Click</strong> - Select puzzle row</p>
                     <p><strong>Arrow Keys</strong> - Slide selected row</p>
-                    <p><strong>ESC</strong> - Pause</p>
+                    <p><strong>Alt / Esc</strong> - Free cursor</p>
+                    <p><strong>M</strong> - Marinepedia (field guide)</p>
+                    <p><strong>U</strong> - Upgrades</p>
+                    <p><strong>C</strong> - Customize</p>
                 </div>
             </div>
         </div>

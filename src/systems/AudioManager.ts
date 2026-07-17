@@ -177,7 +177,7 @@ export class AudioManager {
         // Create placeholder sounds that won't crash if Howl fails
         // Collect/catch sound
         try {
-            const collectSound = this.createProceduralSound('collect', 0.3, 800, 'sine');
+            const collectSound = this.createProceduralSound('collect');
             if (collectSound) {
                 (this as any).sounds = (this as any).sounds || new Map();
                 (this as any).sounds.set('collect', collectSound);
@@ -237,6 +237,30 @@ export class AudioManager {
         } catch (error) {
             console.warn(`Could not create ${type} sound:`, error);
             return null;
+        }
+    }
+
+    private generateSoundForType(name: string): void {
+        switch (name) {
+            case 'blockSlide':
+                this.generateBlockSlideSound();
+                break;
+            case 'win':
+                this.generateWinSound();
+                break;
+            case 'collect':
+                this.generateCollectSound();
+                break;
+            case 'bubble':
+                this.generateBubbleSound();
+                break;
+            case 'sonar':
+                this.generateSonarSound();
+                break;
+            default:
+                // Fallback: short collect-style chime
+                this.generateCollectSound();
+                break;
         }
     }
     

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "first_discovery",
+    "name": "First Discovery",
+    "title": "First Discovery",
+    "description": "Catch your first ocean friend and open your Marinepedia.",
+    "type": "discover",
+    "actionType": "catch_fish",
+    "target": 1,
+    "cpReward": 10,
+    "pearlReward": 15,
+    "gems": 10,
+    "learnWhy": "Every species has a job in the ocean — spotting them is the first step to protecting them.",
+    "realWorldHook": "Next time you visit an aquarium, look for name cards under each tank."
+  },
+  {
+    "id": "meet_the_reef",
+    "name": "Meet the Reef",
+    "title": "Meet the Reef",
+    "description": "Discover a clownfish living near the coral city.",
+    "type": "discover",
+    "actionType": "catch_species",
+    "speciesId": "clownfish",
+    "target": 1,
+    "cpReward": 15,
+    "pearlReward": 20,
+    "learnWhy": "Clownfish and sea anemones help each other — a real underwater partnership!",
+    "realWorldHook": "Ask a grown-up what a symbiotic relationship means."
+  },
+  {
+    "id": "ghost_net_rescue",
+    "name": "Ghost Net Rescue",
+    "title": "Ghost Net Rescue",
+    "description": "Free animals trapped in abandoned fishing nets (press F near a net).",
+    "type": "rescue",
+    "actionType": "free_net",
+    "target": 1,
+    "cpReward": 25,
+    "pearlReward": 30,
+    "learnWhy": "Ghost nets keep fishing forever after they're lost — freeing animals saves lives.",
+    "realWorldHook": "Never leave fishing line or nets on a beach or boat."
+  },
+  {
+    "id": "plastic_patrol",
+    "name": "Plastic Patrol",
+    "title": "Plastic Patrol",
+    "description": "Collect litter floating near the reef (press F near trash).",
+    "type": "cleanup",
+    "actionType": "cleanup_litter",
+    "target": 5,
+    "cpReward": 20,
+    "pearlReward": 25,
+    "learnWhy": "Plastic can float for hundreds of years and animals may think it is food.",
+    "realWorldHook": "Bring a bag on your next beach or park walk and pick up five pieces of trash."
+  },
+  {
+    "id": "deep_glow",
+    "name": "Deep Glow",
+    "title": "Deep Glow",
+    "description": "Dive deeper and discover a creature of the mid-depths.",
+    "type": "discover",
+    "actionType": "reach_depth",
+    "target": 40,
+    "cpReward": 20,
+    "pearlReward": 25,
+    "learnWhy": "Deeper water is darker and colder — life there uses light and clever senses.",
+    "realWorldHook": "Most of Earth is ocean, and most of the ocean is deep and unexplored."
+  },
+  {
+    "id": "ranger_badge_reef",
+    "name": "Reef Catalog",
+    "title": "Reef Catalog",
+    "description": "Discover 6 different species for your Marinepedia.",
+    "type": "discover",
+    "actionType": "discover_count",
+    "target": 6,
+    "cpReward": 40,
+    "pearlReward": 50,
+    "learnWhy": "Rangers keep records so scientists and kids can track what lives where.",
+    "realWorldHook": "Start a nature notebook: draw one animal and write one fact."
+  }
+]

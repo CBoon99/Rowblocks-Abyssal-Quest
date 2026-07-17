@@ -22,11 +22,11 @@ export class CustomizationShop {
     private isVisible: boolean = false;
     
     private skins: Skin[] = [
-        { id: 'default', name: 'Default', color: '#00aaff', cost: 0, description: 'Standard blue diver suit' },
-        { id: 'coral', name: 'Coral', color: '#ff6b6b', cost: 50, description: 'Vibrant coral-colored suit' },
-        { id: 'emerald', name: 'Emerald', color: '#51cf66', cost: 50, description: 'Deep green emerald suit' },
-        { id: 'purple', name: 'Purple', color: '#9775fa', cost: 50, description: 'Mysterious purple suit' },
-        { id: 'gold', name: 'Gold', color: '#ffd43b', cost: 100, description: 'Luxurious gold suit' }
+        { id: 'default', name: "Jasmine's Dive", color: '#f07a28', cost: 0, description: 'Black suit + orange sleeves — her look' },
+        { id: 'coral', name: 'Coral Sleeves', color: '#ff6b7a', cost: 50, description: 'Coral pink sleeve accent' },
+        { id: 'emerald', name: 'Reef Sleeves', color: '#2ee59d', cost: 50, description: 'Healthy reef green sleeves' },
+        { id: 'purple', name: 'Twilight Sleeves', color: '#9b7bff', cost: 50, description: 'Deep purple sleeve accent' },
+        { id: 'gold', name: 'Guardian Gold', color: '#ffd166', cost: 100, description: 'Gold sleeves — Guardian of the Reef' },
     ];
     
     private upgrades: Upgrade[] = [

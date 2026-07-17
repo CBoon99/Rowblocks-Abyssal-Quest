@@ -7,7 +7,8 @@ export class PhysicsWorld {
         this.world = new CANNON.World();
         this.world.gravity.set(0, -9.82, 0); // Gravity (will be modified for underwater)
         this.world.broadphase = new CANNON.NaiveBroadphase();
-        this.world.solver.iterations = 10;
+        // World.solver is typed as base Solver; default is GSSolver which has iterations
+        (this.world.solver as CANNON.GSSolver).iterations = 10;
         
         // Underwater physics: reduce gravity effect, add buoyancy
         this.world.gravity.set(0, -2, 0); // Reduced gravity for underwater feel

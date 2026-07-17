@@ -1,0 +1,42 @@
+[
+  {
+    "id": "tide_explorer",
+    "name": "Tide Explorer",
+    "minCp": 0,
+    "badge": "🌊",
+    "description": "You just pulled on your fins. The shallows are your classroom.",
+    "briefing": "Welcome, ranger! Watch, wonder, and be gentle. Every fish has a story. Your Marinepedia grows with every discovery."
+  },
+  {
+    "id": "reef_scout",
+    "name": "Reef Scout",
+    "minCp": 50,
+    "badge": "🪸",
+    "description": "You know the coral city and its colorful neighbors.",
+    "briefing": "Reefs are cities built by tiny animals. Clean water and careful divers keep them bright. You are learning to care for the reef."
+  },
+  {
+    "id": "kelp_keeper",
+    "name": "Kelp Keeper",
+    "minCp": 150,
+    "badge": "🌿",
+    "description": "You clean as you explore and free what gets stuck.",
+    "briefing": "Litter and lost nets hurt animals that cannot ask for help. Your cleanups and rescues matter. Keep going, Keeper."
+  },
+  {
+    "id": "abyss_ranger",
+    "name": "Abyss Ranger",
+    "minCp": 300,
+    "badge": "🌑",
+    "description": "You respect the deep and the strange life that lives there.",
+    "briefing": "The deep ocean is Earth's last great wilderness. Light is rare, and life is clever. Rangers protect what they barely know yet."
+  },
+  {
+    "id": "ocean_guardian",
+    "name": "Ocean Guardian",
+    "minCp": 500,
+    "badge": "🏆",
+    "description": "Legendary helper of the blue planet.",
+    "briefing": "You lead with curiosity and kindness. Teach a friend one ocean fact. Guardians share knowledge — that is how oceans heal."
+  }
+]
