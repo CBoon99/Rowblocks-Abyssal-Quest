@@ -65,17 +65,42 @@ async function waitBoot(page) {
 
 async function pickJasmineIfNeeded(page) {
     const cont = page.locator('#btn-continue-jasmine');
-    if (await cont.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await cont.click();
-        await page.waitForTimeout(600);
+    if (await cont.isVisible({ timeout: 4000 }).catch(() => false)) {
+        await cont.click({ force: true });
+        await page.waitForTimeout(800);
+    } else {
+        const alt = page
+            .locator('button:has-text("Jasmine"), button:has-text("Continue"), .profile-card')
+            .first();
+        if (await alt.isVisible({ timeout: 1500 }).catch(() => false)) {
+            await alt.click({ force: true });
+            await page.waitForTimeout(800);
+        }
     }
+    // Unstick profile gate → main menu (gift path)
+    await page.evaluate(() => {
+        document.getElementById('profile-select-container') &&
+            (document.getElementById('profile-select-container').style.display = 'none');
+        const ss = document.getElementById('start-screen');
+        if (ss) {
+            ss.classList.remove('hidden');
+            ss.style.display = 'flex';
+        }
+    });
 }
 
 async function diveIn(page) {
     await pickJasmineIfNeeded(page);
     // Gift path: #btn-play = Dive Home Reef (one-tap, no level grid)
     const play = page.locator('#btn-play');
-    await play.waitFor({ state: 'visible', timeout: TIMEOUT });
+    await page.evaluate(() => {
+        const ss = document.getElementById('start-screen');
+        if (ss) {
+            ss.classList.remove('hidden');
+            ss.style.display = 'flex';
+        }
+    });
+    await play.waitFor({ state: 'visible', timeout: Math.min(TIMEOUT, 45_000) });
     // force: second WebGL tab can steal input / stall actionability
     await play.click({ force: true, timeout: TIMEOUT });
     await page.waitForTimeout(1000);

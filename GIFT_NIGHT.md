@@ -2,14 +2,25 @@
 
 **One page run sheet.** Keep this next to the laptop.
 
-## URL (only this)
+## URL for Jasmine (Manchester — you in Indonesia)
+
+**Publish once** (see `WEB_FOR_JASMINE.md`), then send her:
+
+```
+https://YOUR-SITE.netlify.app
+```
+
+She opens that → **Continue as Jasmine** → **Dive Home Reef**.  
+Progress saves in **her** browser (web login = that button).
+
+## Local test URL (your Mac only)
 
 ```
 http://127.0.0.1:5173/index-3d.html
 ```
 
-Same Wi‑Fi iPad: `http://<YOUR-MAC-IP>:5173/index-3d.html`  
-(Hard refresh if something looks old: Cmd+Shift+R)
+Same Wi‑Fi only (not for Manchester). Hard refresh: Cmd+Shift+R  
+Full remote publish steps: **WEB_FOR_JASMINE.md**
 
 ## Start the server (if not already running)
 

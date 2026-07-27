@@ -81,27 +81,31 @@ export class ProfileSelectUI {
                         <span class="bubble b2"></span>
                         <span class="bubble b3"></span>
                     </div>
-                    <h1 class="profile-title">🌊 Choose Your Diver</h1>
-                    <p class="profile-subtitle">Rowblocks Abyssal Quest</p>
+                    <h1 class="profile-title">Ocean Ranger Login</h1>
+                    <p class="profile-subtitle">Rowblocks: Abyssal Quest · web gift</p>
+                    <p class="profile-web-hint">Your progress saves in this browser on this device.</p>
 
                     ${jasmine ? `
                         <button class="profile-continue-jasmine" id="btn-continue-jasmine" type="button">
-                            <span class="profile-continue-icon">🐠</span>
+                            <span class="profile-continue-icon" aria-hidden="true">◆</span>
                             <span>
                                 <strong>Continue as Jasmine</strong>
-                                <small>Jump right in</small>
+                                <small>Tap to log in and dive</small>
                             </span>
                         </button>
-                    ` : ''}
+                    ` : `
+                        <p class="profile-empty">Preparing Jasmine’s ranger profile…</p>
+                    `}
 
                     <div class="profile-list" id="profile-list">
-                        ${profiles.length === 0
-                            ? '<p class="profile-empty">No divers yet — create one below!</p>'
-                            : profiles.map((p) => this.renderProfileCard(p)).join('')}
+                        ${profiles
+                            .filter((p) => p.displayName.toLowerCase() !== 'jasmine')
+                            .map((p) => this.renderProfileCard(p))
+                            .join('')}
                     </div>
 
                     <button class="profile-btn-create" id="btn-show-create" type="button">
-                        ➕ Create New Diver
+                        Create another diver
                     </button>
                 </div>
             </div>
