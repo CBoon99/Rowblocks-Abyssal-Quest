@@ -6,6 +6,7 @@ import { LevelSystem } from '../systems/LevelSystem';
 import { UpgradeSystem } from '../systems/UpgradeSystem';
 import { useGameStore } from '../stores/GameStore';
 import { setQualityTier, type QualityTier } from '../systems/QualitySettings';
+import { getFirstDiveDirector } from '../systems/FirstDiveDirector';
 import { ICONS } from './HudIcons';
 
 export class GameHUD {
@@ -557,10 +558,28 @@ export class GameHUD {
         const levelSystem = game?.getLevelSystem?.() ?? this.levelSystem;
         const currentLevel = levelSystem?.getCurrentLevel?.();
         if (!currentLevel || !game) return;
+        // Reset free-swim gift win so Try Again can celebrate again
+        try {
+            (window as any).__diveCleans = 0;
+            (window as any).__giftSwimWon = false;
+            (window as any).__diveCleanTarget =
+                (window as any).__diveCleanTarget || 8;
+            this.updateCleanProgress?.(0, (window as any).__diveCleanTarget || 8);
+            game.getDiveBudget?.()?.reset?.();
+            game.getConservationWorld?.()?.respawnHomeReefGiftTrash?.();
+            getFirstDiveDirector().reset();
+        } catch {
+            /* soft */
+        }
         const blockSystem = game.getBlockPuzzleSystem?.();
         if (blockSystem && typeof blockSystem.loadLevelBlocks === 'function') {
             levelSystem.startLevel(currentLevel.id);
             blockSystem.loadLevelBlocks();
+            try {
+                blockSystem.setBlocksVisible?.(false);
+            } catch {
+                /* soft */
+            }
             if (typeof game.onLevelStarted === 'function') game.onLevelStarted();
             if (!game.isRunning) game.start();
             this.render();
@@ -696,10 +715,11 @@ export class GameHUD {
         const name = profile?.displayName || 'Ranger';
         const cp = useGameStore.getState().conservationPoints ?? 0;
 
-        // Celebration juice
+        // Celebration juice — win arpeggio (not collect chime)
         try {
-            game?.getAudioManager?.()?.playSound?.('collect');
-            (game as any).audioManager?.playSound?.('collect');
+            const am = game?.getAudioManager?.() ?? (game as any).audioManager;
+            am?.startAudio?.();
+            am?.playSound?.('win');
             const pos = game?.getSwimmerController?.()?.getPosition?.();
             if (pos) game?.getBubblesSystem?.()?.emitBubbles?.(pos.clone(), 40);
         } catch {

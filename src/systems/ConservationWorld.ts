@@ -91,6 +91,46 @@ export class ConservationWorld {
         );
     }
 
+    /**
+     * Gift Try Again — clear home-path litter/nets and re-place demo trash.
+     * Distant reef litter is left alone.
+     */
+    respawnHomeReefGiftTrash(): void {
+        const keepLitter: LitterProp[] = [];
+        for (const item of this.litter) {
+            if (item.homePath) {
+                try {
+                    this.root.remove(item.mesh);
+                } catch {
+                    /* soft */
+                }
+            } else {
+                keepLitter.push(item);
+            }
+        }
+        this.litter = keepLitter;
+
+        // Remove path-area nets (demo net ~4.5,10) so spawn can place a fresh one
+        const keepNets: GhostNetProp[] = [];
+        for (const net of this.nets) {
+            const nearPath = Math.hypot(net.position.x - 4.5, net.position.z - 10) < 4;
+            if (nearPath) {
+                try {
+                    this.root.remove(net.group);
+                } catch {
+                    /* soft */
+                }
+            } else {
+                keepNets.push(net);
+            }
+        }
+        this.nets = keepNets;
+        this.spawnHomeReefDemoTrash();
+        console.log(
+            `♻️ Home Reef gift trash respawned: litter=${this.litter.length} nets=${this.nets.length}`
+        );
+    }
+
     update(dt: number): void {
         this.time += dt;
 

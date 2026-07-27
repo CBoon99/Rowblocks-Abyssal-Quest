@@ -150,7 +150,9 @@ function makeGreenFlower(): THREE.Group {
 
 /**
  * Build Jasmine matched to her Roblox dive avatar.
- * Group origin = chest / physics body center. Faces −Z (look forward).
+ * Group origin = chest / physics body center.
+ * Mesh faces **+Z** (eyes/zip at +Z). SwimmerController adds π to yaw so she faces
+ * movement forward (−Z look space) — otherwise she stares into the chase camera.
  */
 export function buildJasmineDiver(opts: {
     suitId?: JasmineSuitId;

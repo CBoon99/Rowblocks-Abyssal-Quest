@@ -26,8 +26,13 @@ import {
     FIRST_DIVE_OBJECTIVE,
     FIRST_DIVE_OBJECTIVE_TITLE,
 } from './systems/HomeReefStage';
-import { GIFT_HOME_LEVEL_ID } from './systems/GiftMode';
+import {
+    GIFT_CLEAN_PROGRESS_TARGET,
+    GIFT_CLEAN_WIN_TARGET,
+    GIFT_HOME_LEVEL_ID,
+} from './systems/GiftMode';
 import { getFirstDiveDirector } from './systems/FirstDiveDirector';
+import { tryGiftSwimWin } from './systems/GiftSwimWin';
 
 // Initialize game when DOM is ready
 const initGame = async () => {
@@ -162,13 +167,14 @@ const initGame = async () => {
 
             // Home Reef bones: explore first, puzzle later
             (window as any).__diveCleans = 0;
-            (window as any).__diveCleanTarget = 8;
+            (window as any).__diveCleanTarget = GIFT_CLEAN_PROGRESS_TARGET;
+            (window as any).__giftSwimWon = false;
             gameHUD.showObjectiveBanner?.(FIRST_DIVE_OBJECTIVE, 7000);
             const titleEl = document.getElementById('aq-obj-title');
             const bodyEl = document.getElementById('aq-obj-body');
             if (titleEl) titleEl.textContent = FIRST_DIVE_OBJECTIVE_TITLE;
             if (bodyEl) bodyEl.textContent = FIRST_DIVE_OBJECTIVE;
-            gameHUD.updateCleanProgress?.(0, 8);
+            gameHUD.updateCleanProgress?.(0, GIFT_CLEAN_PROGRESS_TARGET);
             game.getBlockPuzzleSystem?.()?.setBlocksVisible?.(false);
 
             // iPad controls — coach only until dismissed (localStorage)
@@ -293,8 +299,38 @@ const initGame = async () => {
             doAutoSave();
         };
 
-        // Conservation world juice + mission-facing toasts
+        // Conservation world juice + mission-facing toasts + free-swim gift win
         const consWorld = game.getConservationWorld?.();
+        const maybeGiftSwimWin = () => {
+            try {
+                tryGiftSwimWin({
+                    getCleans: () => (window as any).__diveCleans || 0,
+                    isAlreadyWon: () => !!(window as any).__giftSwimWon,
+                    markWon: () => {
+                        (window as any).__giftSwimWon = true;
+                    },
+                    clearWon: () => {
+                        (window as any).__giftSwimWon = false;
+                    },
+                    getLevelSystem: () => game.getLevelSystem(),
+                    getUpgradeSystem: () => game.getUpgradeSystem(),
+                    showWinScreen: (stars, score, unlocked) => {
+                        gameHUD.showWinScreen(stars, score, unlocked);
+                    },
+                    onBeforeWin: () => {
+                        DiscoveryToast.show('The reef thanks you!', {
+                            icon: '·',
+                            subtitle: `You cleaned ${GIFT_CLEAN_WIN_TARGET}+ pieces — Guardian moment!`,
+                            durationMs: 4200,
+                        });
+                    },
+                    doAutoSave,
+                });
+            } catch (e) {
+                console.warn('[main] gift swim win soft-fail', e);
+            }
+        };
+
         if (consWorld) {
             const prevCollect = consWorld.onCollect;
             consWorld.onCollect = (e: {
@@ -308,7 +344,7 @@ const initGame = async () => {
                 // Dive clean counter for HUD quest card
                 const w = window as any;
                 w.__diveCleans = (w.__diveCleans || 0) + n;
-                w.__diveCleanTarget = w.__diveCleanTarget || 8;
+                w.__diveCleanTarget = w.__diveCleanTarget || GIFT_CLEAN_PROGRESS_TARGET;
                 DiscoveryToast.show(
                     n > 1 ? 'The path is clearer!' : 'Trash gone — fish can breathe easier.',
                     {
@@ -326,6 +362,7 @@ const initGame = async () => {
                 } catch {
                     /* soft */
                 }
+                maybeGiftSwimWin();
                 refreshRangerUI();
                 doAutoSave();
             };
@@ -334,7 +371,7 @@ const initGame = async () => {
                 prevFree?.(e as any);
                 const w = window as any;
                 w.__diveCleans = (w.__diveCleans || 0) + 2;
-                w.__diveCleanTarget = w.__diveCleanTarget || 8;
+                w.__diveCleanTarget = w.__diveCleanTarget || GIFT_CLEAN_PROGRESS_TARGET;
                 DiscoveryToast.show('You freed them!', {
                     icon: '·',
                     subtitle: 'The net can’t hurt anyone anymore. The ocean thanks you.',
@@ -349,6 +386,7 @@ const initGame = async () => {
                 } catch {
                     /* soft */
                 }
+                maybeGiftSwimWin();
                 refreshRangerUI();
                 doAutoSave();
             };

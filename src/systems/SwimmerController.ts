@@ -64,7 +64,13 @@ export class SwimmerController {
     private readonly MAX_SPEED: number = 5.8;
     /** Seafloor / surface swim bounds (Scene3D shelf ~-2.5, surface ~15) */
     private readonly MIN_Y: number = -1.2;
-    private readonly MAX_Y: number = 12.5;
+    /**
+     * Must reach water surface (~14.5) so DiveBudget can refill.
+     * Was 12.5 — below surface threshold → permanent air-empty + float assist.
+     */
+    private readonly MAX_Y: number = 14.2;
+    /** World surface plane used for air refill (matches Game.surfaceY) */
+    private readonly SURFACE_Y: number = 14.5;
     /** How fast we ease into input (higher = snappier) */
     private readonly ACCEL: number = 7.5;
     /** Coast-down when no input (water drag) */
@@ -499,12 +505,13 @@ export class SwimmerController {
         const pz = bodyPos.z;
 
         // ── Jasmine body ─────────────────────────────────────────
+        // Mesh is built facing +Z (eyes/zip at +Z). Movement forward is −Z via lookQuat.
+        // Add π so her face points the way she swims — not into the chase camera.
+        const faceYaw = this.euler.y + Math.PI;
         if (this.jasmine) {
             this.jasmine.group.position.set(px, py, pz);
-            // Face swim / look yaw (pitch slightly for dive angle)
             this.jasmine.group.rotation.order = 'YXZ';
-            this.jasmine.group.rotation.y = this.euler.y;
-            this.jasmine.group.rotation.x = this.euler.x * 0.45;
+            this.jasmine.group.rotation.y = faceYaw;
             const moveSpeed = Math.hypot(
                 this.physicsBody.velocity.x,
                 this.physicsBody.velocity.y,
@@ -516,15 +523,16 @@ export class SwimmerController {
                 moveSpeed * 0.28,
                 this.gentleness
             );
-            // Soft idle float bob + swim pitch (Pass 2 readable pose)
+            // Soft idle float bob + swim pitch (readable dive pose)
             this.jasmine.group.position.y +=
                 Math.sin(this.animTime * 1.4) * 0.03 * (1 - Math.min(1, moveSpeed * 0.1));
+            // Pitch: nose dips when looking down / swimming forward (mesh +Z face → pitch sign)
             const divePitch =
-                this.euler.x * 0.45 +
-                Math.min(0.35, moveSpeed * 0.04) * (this.moveForward ? 1 : 0.3);
+                -this.euler.x * 0.4 +
+                Math.min(0.28, moveSpeed * 0.035) * (this.moveForward ? 1 : 0.25);
             this.jasmine.group.rotation.x = divePitch;
 
-            // Bubble trail from tank / fins (Pass 2–3)
+            // Bubble trail from tank (behind chest = −Z of mesh = +world along look back)
             this.bubbleTrailT += deltaTime;
             const trailRate = 0.08 + Math.min(0.2, moveSpeed * 0.03);
             if (this.bubbleTrailT >= trailRate) {
@@ -534,11 +542,10 @@ export class SwimmerController {
                         (window as any).bubblesSystem;
                     if (bubbles?.emitBubbles) {
                         const trailPos = new THREE.Vector3(px, py - 0.15, pz);
-                        // Offset slightly behind chest (tank)
-                        const back = new THREE.Vector3(0, 0, 0.35).applyEuler(
+                        const backTank = new THREE.Vector3(0, 0, 0.35).applyEuler(
                             new THREE.Euler(0, this.euler.y, 0)
                         );
-                        trailPos.add(back);
+                        trailPos.add(backTank);
                         bubbles.emitBubbles(trailPos, moveSpeed > 1.2 ? 2 : 1);
                     }
                 } catch {
@@ -548,29 +555,24 @@ export class SwimmerController {
         }
 
         // ── Third-person chase camera ────────────────────────────
-        // Behind & above Jasmine, along look vector
+        // Sit behind Jasmine (opposite of look −Z), slightly above; look past her shoulders.
+        // Do NOT copy lookQuat onto camera — that fought lookAt and made odd angles.
         const back = new THREE.Vector3(0, 0, 1).applyQuaternion(lookQuat);
         const up = new THREE.Vector3(0, 1, 0);
         const desired = new THREE.Vector3(px, py, pz)
             .add(back.multiplyScalar(this.camOffset.z))
             .add(up.multiplyScalar(this.camOffset.y));
-        // Soft follow — slightly laggier = swimming cinema, less motion sickness
-        this.camSmooth.lerp(desired, 1 - Math.exp(-5.2 * dt));
+        this.camSmooth.lerp(desired, 1 - Math.exp(-5.5 * dt));
         this.camera.position.copy(this.camSmooth);
 
-        // Look toward a point slightly ahead of Jasmine's head
-        this.camLookAt.set(px, py + 0.45, pz);
+        // Aim slightly above torso + a bit ahead so we see her back/side, not a face cam
+        this.camLookAt.set(px, py + 0.55, pz);
         this.camLookAt.add(
-            new THREE.Vector3(0, 0, -1).applyQuaternion(lookQuat).multiplyScalar(2.5)
+            new THREE.Vector3(0, 0, -1).applyQuaternion(lookQuat).multiplyScalar(1.8)
         );
         this.camera.lookAt(this.camLookAt);
-        // Keep euler in sync for getDirection (use look quat on camera)
-        this.camera.quaternion.copy(lookQuat);
-        // Re-apply lookAt feel: blend camera forward with look
-        // (pointer look remains source of truth via lookQuat already set)
-        this.camera.quaternion.copy(lookQuat);
 
-        // Flashlight aims where she's looking
+        // Flashlight follows look (child of camera still aims forward of view)
         if (this.flashlight) {
             this.flashlight.target.position.set(0, 0, -10);
         }
@@ -611,9 +613,20 @@ export class SwimmerController {
     }
     
     getDirection(): THREE.Vector3 {
+        // Use look yaw/pitch, not camera (camera is chase-cam and may differ)
         const dir = new THREE.Vector3(0, 0, -1);
-        dir.applyQuaternion(this.camera.quaternion);
+        const e = new THREE.Euler(this.pitchObject.rotation.x, this.yawObject.rotation.y, 0, 'YXZ');
+        dir.applyEuler(e);
         return dir;
+    }
+
+    /** Look yaw (radians) — same as mouse look, not mesh face yaw */
+    getLookYaw(): number {
+        return this.yawObject.rotation.y;
+    }
+
+    getLookPitch(): number {
+        return this.pitchObject.rotation.x;
     }
 
     /** Net collect range from store (base + upgrades applied by Game.collectFish). */

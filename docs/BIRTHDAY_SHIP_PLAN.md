@@ -16,7 +16,8 @@
 - [x] Buddy UI honesty (local tabs)  
 - [x] Win sparkle + README/SHIP truth  
 - [x] Smoke multi-port + Abyssal content detect (not BoonMind on :3000)  
-- [ ] **Still open:** real iPad Safari pass (S2), richer audio (S3.1), creature GLBs (S4)
+- [x] Free-swim win at clean target (`GiftSwimWin` + clean/net/win SFX) — 2026-07-27  
+- [ ] **Still open:** real iPad Safari pass (S2), richer audio beds (S3.1 polish), creature GLBs (S4)
 
 ---
 

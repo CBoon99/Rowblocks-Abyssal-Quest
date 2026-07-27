@@ -15,8 +15,8 @@ export type DiveBudgetState = {
 export class DiveBudget {
     private air = 1;
     private readonly maxAir = 1;
-    /** Drain per second at surface-ish depth */
-    private baseDrain = 0.012;
+    /** Drain per second at surface-ish depth (gentle — gift play, not survival stress) */
+    private baseDrain = 0.007;
     private assisting = false;
     private assistTimer = 0;
     private lastWarn = 0;

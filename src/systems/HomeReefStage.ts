@@ -101,10 +101,10 @@ export const FIRST_DIVE_OBJECTIVE =
 
 export const FIRST_DIVE_OBJECTIVE_TITLE = 'HOME REEF';
 
-/** Chase camera offset (behind / above Jasmine) */
+/** Chase camera offset (behind / above Jasmine) — classic over-shoulder swim cam */
 export const CAMERA_OFFSET = {
-    y: 1.55,
-    z: 4.8,
+    y: 1.75,
+    z: 5.4,
 } as const;
 
 /**

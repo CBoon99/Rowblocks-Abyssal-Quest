@@ -244,6 +244,20 @@ export class AudioManager {
         } catch (e) {
             console.warn('Could not create sonar sound:', e);
         }
+
+        // Clean litter (gift path)
+        try {
+            this.sounds.set('clean', this.createProceduralSound('clean'));
+        } catch (e) {
+            console.warn('Could not create clean sound:', e);
+        }
+
+        // Free ghost net
+        try {
+            this.sounds.set('net', this.createProceduralSound('net'));
+        } catch (e) {
+            console.warn('Could not create net sound:', e);
+        }
     }
     
     private createProceduralSound(type: string): Howl | null {
@@ -274,6 +288,12 @@ export class AudioManager {
                 break;
             case 'collect':
                 this.generateCollectSound();
+                break;
+            case 'clean':
+                this.generateCleanSound();
+                break;
+            case 'net':
+                this.generateNetSound();
                 break;
             case 'bubble':
                 this.generateBubbleSound();
@@ -346,6 +366,38 @@ export class AudioManager {
             data[i] = Math.sin(t * 1000 * Math.PI * 2) * Math.exp(-t * 10) * 0.4;
         }
         
+        this.playBuffer(buffer);
+    }
+
+    /** Soft positive “trash gone” — warmer than collect */
+    private generateCleanSound(): void {
+        if (!this.audioContext) return;
+        const duration = 0.28;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, duration * sampleRate, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            const t = i / sampleRate;
+            const a = Math.sin(t * 660 * Math.PI * 2) * Math.exp(-t * 8);
+            const b = Math.sin(t * 880 * Math.PI * 2) * Math.exp(-t * 10) * 0.5;
+            data[i] = (a + b) * 0.35;
+        }
+        this.playBuffer(buffer);
+    }
+
+    /** Soft whoosh + rise when net is freed */
+    private generateNetSound(): void {
+        if (!this.audioContext) return;
+        const duration = 0.45;
+        const sampleRate = this.audioContext.sampleRate;
+        const buffer = this.audioContext.createBuffer(1, duration * sampleRate, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            const t = i / sampleRate;
+            const whoosh = (Math.random() * 2 - 1) * Math.exp(-t * 6) * 0.25;
+            const rise = Math.sin(t * (400 + t * 600) * Math.PI * 2) * Math.exp(-t * 3) * 0.3;
+            data[i] = whoosh + rise;
+        }
         this.playBuffer(buffer);
     }
     
@@ -445,22 +497,35 @@ export class AudioManager {
     playSound(name: string, position?: THREE.Vector3): void {
         if (this.muted) return;
         try {
+            // Safari: resume suspended context before generating buffers
+            if (this.audioContext?.state === 'suspended') {
+                this.audioContext
+                    .resume()
+                    .then(() => this.playSoundNow(name, position))
+                    .catch(() => this.playSoundNow(name, position));
+                return;
+            }
+            this.playSoundNow(name, position);
+        } catch (error) {
+            console.warn(`Error playing sound ${name}:`, error);
+        }
+    }
+
+    private playSoundNow(name: string, position?: THREE.Vector3): void {
+        if (this.muted) return;
+        try {
             const sound = this.sounds.get(name);
             if (sound) {
                 try {
                     if (position) {
-                        // Play as positional 3D sound
                         this.playPositionalSound(name, position);
                     } else {
-                        // Play as regular sound
                         sound.play();
                     }
-                } catch (e) {
-                    // Howl might not be initialized, generate procedurally instead
+                } catch {
                     this.generateSoundForType(name);
                 }
             } else {
-                // No Howl instance, generate procedurally
                 this.generateSoundForType(name);
             }
         } catch (error) {

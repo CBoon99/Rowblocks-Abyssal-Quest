@@ -296,7 +296,7 @@ export class Game {
                             /* optional particles */
                         }
                         try {
-                            this.audioManager?.playSound?.('collect');
+                            this.audioManager?.playSound?.('clean');
                         } catch {
                             /* soft */
                         }
@@ -323,7 +323,7 @@ export class Game {
                             /* optional particles */
                         }
                         try {
-                            this.audioManager?.playSound?.('collect');
+                            this.audioManager?.playSound?.('net');
                         } catch {
                             /* soft */
                         }
@@ -855,15 +855,15 @@ export class Game {
 
         const assist = this.diveBudget.update(dt, depth, isSurfaced, buddyNear);
         if (assist) {
-            // Soft float up — never drowning
+            // Soft float up — never drowning (must reach surfaceY so air refills)
             try {
                 const body = (this.swimmerController as any).physicsBody;
                 if (body?.position) {
                     body.position.y = Math.min(
-                        this.surfaceY - 0.5,
-                        body.position.y + dt * 3.5
+                        this.surfaceY - 0.35,
+                        body.position.y + dt * 4.2
                     );
-                    if (body.velocity) body.velocity.y = Math.max(body.velocity.y, 2);
+                    if (body.velocity) body.velocity.y = Math.max(body.velocity.y, 2.5);
                 }
             } catch {
                 /* soft */
@@ -877,16 +877,16 @@ export class Game {
         const alert = this.rangerAlerts.getActive();
         if (alert) (window as any).gameHUD?.updateRangerAlert?.(alert);
 
-        // Broadcast pose to buddy (Jasmine body, not camera)
+        // Broadcast pose to buddy (body + look; mesh face is lookYaw+π)
         if (buddy.isActive()) {
-            const euler = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
             const pos = this.swimmerController.getPosition();
+            const sc = this.swimmerController as any;
             buddy.sendPose({
                 x: pos.x,
                 y: pos.y,
                 z: pos.z,
-                yaw: euler.y,
-                pitch: euler.x,
+                yaw: sc.getLookYaw?.() ?? 0,
+                pitch: sc.getLookPitch?.() ?? 0,
                 air: this.diveBudget.getAir(),
             });
         }
@@ -910,8 +910,9 @@ export class Game {
         g.visible = true;
         g.position.set(pose.x, pose.y, pose.z);
         g.rotation.order = 'YXZ';
-        g.rotation.y = pose.yaw;
-        g.rotation.x = pose.pitch * 0.35;
+        // Same +π as local Jasmine — mesh faces +Z, look forward is −Z
+        g.rotation.y = pose.yaw + Math.PI;
+        g.rotation.x = -pose.pitch * 0.35;
         if (this.remoteBuddyBuild) {
             this.remoteBuddyAnimT += 0.016;
             animateJasmine(this.remoteBuddyBuild, this.remoteBuddyAnimT, 0.6, 0.7);
