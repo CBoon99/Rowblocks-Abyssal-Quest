@@ -3,6 +3,16 @@
 The game is **already a website**. She does **not** install an app.  
 She opens a **URL** in Safari / Chrome → **Continue as Jasmine** → **Dive Home Reef**.
 
+## Preferred live URL (GitHub Pages)
+
+After the Actions deploy succeeds (and Pages source = GitHub Actions):
+
+```
+https://cboon99.github.io/Rowblocks-Abyssal-Quest/
+```
+
+Auto-updates on every push to **`main`**.
+
 ## How “login” works
 
 | What | Reality |

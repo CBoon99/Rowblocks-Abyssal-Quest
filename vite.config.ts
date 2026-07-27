@@ -27,10 +27,17 @@ const renameIndexPlugin = () => {
   };
 };
 
+// Netlify / local: base '/'
+// GitHub Pages project site: set GITHUB_PAGES=true → '/Rowblocks-Abyssal-Quest/'
+const base =
+    process.env.GITHUB_PAGES === 'true' || process.env.GITHUB_PAGES === '1'
+        ? '/Rowblocks-Abyssal-Quest/'
+        : '/';
+
 export default defineConfig({
   root: '.',
   publicDir: 'public',
-  base: '/', // Ensure base path for Netlify
+  base,
   server: {
     port: 5173,
     open: '/index-3d.html'
