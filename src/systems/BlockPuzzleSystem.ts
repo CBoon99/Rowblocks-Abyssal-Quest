@@ -162,7 +162,20 @@ export class BlockPuzzleSystem {
 
         const blockPositions = this.blocks.map(b => `(${b.gridX},${b.gridY},${b.gridZ}:${b.type})`).join(', ');
         console.log(`✅ Created ${this.blocks.length} blocks at positions: ${blockPositions}`);
+        // Memory Pass: blocks leave the emotional stage until Puzzle tool
+        this.setBlocksVisible(false);
     }
+
+    /** Hide puzzle mesh until invited — protect turtle/manta entrances */
+    setBlocksVisible(visible: boolean): void {
+        for (const block of this.blocks) {
+            block.mesh.visible = visible;
+            // Soft physics: still solid when hidden so win state works if needed
+        }
+        this.blocksVisible = visible;
+    }
+
+    private blocksVisible = false;
 
     private clearBlocks(): void {
         this.blocks.forEach(block => {

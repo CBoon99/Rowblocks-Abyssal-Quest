@@ -1,6 +1,8 @@
-import { Howl, HowlOptions } from 'howler';
+import { Howl, Howler } from 'howler';
 import * as THREE from 'three';
 import { UnderwaterAudio } from './UnderwaterAudio';
+
+const MUTE_STORAGE_KEY = 'rowblocks_audio_muted_v1';
 
 export class AudioManager {
     private ambientSound: Howl | null = null;
@@ -10,6 +12,9 @@ export class AudioManager {
     private positionalSounds: Map<string, THREE.PositionalAudio> = new Map();
     private underwaterFilter: BiquadFilterNode | null = null;
     private underwaterAudio: UnderwaterAudio | null = null;
+    /** Master mute — persists across reloads when possible. */
+    private muted = false;
+    private ambientVolumeBeforeMute = 0.1;
     
     constructor(private camera: THREE.PerspectiveCamera) {
         // Create audio listener attached to camera
@@ -62,6 +67,13 @@ export class AudioManager {
         if (!this.audioContext) {
             this.initAudioContext();
         }
+
+        // Restore mute preference before any sound starts
+        try {
+            this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
+        } catch {
+            this.muted = false;
+        }
         
         // Initialize underwater audio system if context is available
         if (this.audioContext && !this.underwaterAudio) {
@@ -81,6 +93,10 @@ export class AudioManager {
         
         // Set up audio listener position updates
         this.updateListenerPosition();
+
+        if (this.muted) {
+            this.applyMuteState();
+        }
     }
     
     /**
@@ -136,6 +152,14 @@ export class AudioManager {
             console.warn('⚠️ AudioContext not available for procedural ambient');
             return;
         }
+
+        // Already running — just restore volume if unmuted
+        if ((this as any)._ambientGain) {
+            (this as any)._ambientGain.gain.value = this.muted
+                ? 0
+                : this.ambientVolumeBeforeMute;
+            return;
+        }
         
         // Check if audio context is suspended (browser autoplay policy)
         if (this.audioContext.state === 'suspended') {
@@ -155,7 +179,7 @@ export class AudioManager {
             filter.type = 'lowpass';
             filter.frequency.value = 500;
             
-            gainNode.gain.value = 0.1;
+            gainNode.gain.value = this.muted ? 0 : this.ambientVolumeBeforeMute;
             
             oscillator.connect(filter);
             filter.connect(gainNode);
@@ -361,7 +385,7 @@ export class AudioManager {
     }
     
     private playBuffer(buffer: AudioBuffer): void {
-        if (!this.audioContext) return;
+        if (!this.audioContext || this.muted) return;
         
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;
@@ -377,10 +401,14 @@ export class AudioManager {
     }
     
     playAmbient(): void {
+        if (this.muted) {
+            this.applyMuteState();
+            return;
+        }
         try {
             // Play procedural ambient (Web Audio API)
             if ((this as any)._ambientGain) {
-                (this as any)._ambientGain.gain.value = 0.1;
+                (this as any)._ambientGain.gain.value = this.ambientVolumeBeforeMute;
             }
             
             // Try to play Howl ambient if it exists and is valid
@@ -415,6 +443,7 @@ export class AudioManager {
     }
     
     playSound(name: string, position?: THREE.Vector3): void {
+        if (this.muted) return;
         try {
             const sound = this.sounds.get(name);
             if (sound) {
@@ -501,15 +530,65 @@ export class AudioManager {
     
     setMasterVolume(volume: number): void {
         // Set master volume (0.0 to 1.0)
-        Howler.volume(volume);
+        Howler.volume(this.muted ? 0 : volume);
+    }
+
+    isMuted(): boolean {
+        return this.muted;
+    }
+
+    /** Toggle mute. Returns the new muted state. */
+    toggleMute(): boolean {
+        this.setMuted(!this.muted);
+        return this.muted;
+    }
+
+    setMuted(muted: boolean): void {
+        this.muted = !!muted;
+        try {
+            localStorage.setItem(MUTE_STORAGE_KEY, this.muted ? '1' : '0');
+        } catch {
+            /* ignore */
+        }
+        this.applyMuteState();
+    }
+
+    private applyMuteState(): void {
+        try {
+            Howler.mute(this.muted);
+            Howler.volume(this.muted ? 0 : 1);
+        } catch {
+            /* soft */
+        }
+        if ((this as any)._ambientGain) {
+            const g = (this as any)._ambientGain.gain;
+            if (this.muted) {
+                // Remember current audible level if we were playing
+                if (typeof g.value === 'number' && g.value > 0) {
+                    this.ambientVolumeBeforeMute = g.value;
+                }
+                g.value = 0;
+            } else {
+                g.value = this.ambientVolumeBeforeMute || 0.1;
+            }
+        }
+        if (this.ambientSound) {
+            try {
+                this.ambientSound.mute(this.muted);
+            } catch {
+                /* soft */
+            }
+        }
     }
     
     setAmbientVolume(volume: number): void {
+        const v = Math.max(0, Math.min(1, volume));
+        this.ambientVolumeBeforeMute = v * 0.1;
         if (this.ambientSound) {
-            this.ambientSound.volume(volume);
+            this.ambientSound.volume(v);
         }
-        if ((this as any)._ambientGain) {
-            (this as any)._ambientGain.gain.value = volume * 0.1;
+        if ((this as any)._ambientGain && !this.muted) {
+            (this as any)._ambientGain.gain.value = this.ambientVolumeBeforeMute;
         }
     }
     

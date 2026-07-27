@@ -96,11 +96,11 @@ export class MobileControls {
         <div class="mc-coach" id="mc-coach">
           <div class="mc-coach-card">
             <h3>You’re the Ocean Ranger!</h3>
-            <p><strong>Left stick</strong> — swim</p>
-            <p><strong>Drag right side</strong> — look around</p>
-            <p><strong>Observe</strong> — learn about fish</p>
-            <p><strong>Clean</strong> — pick up trash & free nets</p>
-            <p><strong>Puzzle</strong> — slide blocks to open the path</p>
+            <p><strong>Swim gentle</strong> — animals trust you</p>
+            <p><strong>Left stick</strong> — move · <strong>drag right</strong> — look</p>
+            <p><strong>Follow the golden path</strong> — look left for a turtle</p>
+            <p><strong>Clean</strong> — trash & nets (help the reef)</p>
+            <p><strong>Observe</strong> — when you’re close and calm</p>
             <button type="button" class="mc-coach-go" id="mc-coach-go">Let’s dive!</button>
           </div>
         </div>

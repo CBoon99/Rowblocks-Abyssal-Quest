@@ -76,7 +76,7 @@ export class LevelSystem {
         // Solution: select x=1 column, slide on Y (ArrowUp/Down) to clear the corridor.
         this.levels.push({
             id: 1,
-            name: 'First Dive',
+            name: 'Home Reef',
             gridSize: { x: 3, y: 2, z: 1 },
             blocks: [
                 { x: 0, y: 0, z: 0, type: 'start' },
@@ -96,7 +96,8 @@ export class LevelSystem {
             },
             maxMoves: 5,
             targetScore: 100,
-            description: 'Slide the middle column (click it, ArrowUp/Down) to open start→exit!',
+            description:
+                'Swim the golden path. Be gentle with wildlife. Clean trash. Puzzle when you are ready (tool 3).',
             unlocked: true,
             stars: 0
         });

@@ -43,10 +43,21 @@ export class ReefHealthSystem {
     /** Apply clean/rescue near a world position */
     reportCare(x: number, z: number, kind: 'litter' | 'net' | 'observe_calm'): number {
         const { reef } = nearestReef(x, z);
-        if (kind === 'litter') return this.addHealth(reef.id, 2.5);
-        if (kind === 'net') return this.addHealth(reef.id, 6);
-        if (kind === 'observe_calm') return this.addHealth(reef.id, 0.8);
-        return this.getHealth(reef.id);
+        let next = this.getHealth(reef.id);
+        if (kind === 'litter') next = this.addHealth(reef.id, 2.5);
+        else if (kind === 'net') next = this.addHealth(reef.id, 6);
+        else if (kind === 'observe_calm') next = this.addHealth(reef.id, 0.8);
+        // Memory: world visibly thanks — signal for visual pulse
+        try {
+            (window as any).__reefThanksPulse = {
+                reefId: reef.id,
+                t: performance.now(),
+                health: next,
+            };
+        } catch {
+            /* soft */
+        }
+        return next;
     }
 
     reportThrash(x: number, z: number): void {

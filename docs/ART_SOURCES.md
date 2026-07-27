@@ -13,6 +13,7 @@
 | Coast sand albedo/normal/rough/disp | `public/textures/sand/*` | **CC0** | [Poly Haven — coast_sand_01](https://polyhaven.com/a/coast_sand_01) + coast_sand_rocks_02 |
 | Rock albedo/normal | `public/textures/rock/*` | **CC0** | Poly Haven rock |
 | Coral gravel albedo/normal | `public/textures/coral/*` | **CC0** | [Poly Haven — coral_gravel](https://polyhaven.com/a/coral_gravel) |
+| Env HDR (reflections only) | `public/textures/env/sky_1k.hdr` | **CC0** | [Poly Haven — kloofendal_43d_clear_puresky](https://polyhaven.com/a/kloofendal_43d_clear_puresky) |
 
 **Drop-in rule:** `public/models/creatures/{speciesId}.glb` is auto-loaded (see `AssetLibrary.ts`).
 

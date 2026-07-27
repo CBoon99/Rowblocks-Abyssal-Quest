@@ -36,6 +36,15 @@ If a change would ship placeholder creatures, flat water, or barren floor, **sto
 
 ---
 
+## Birthday ship plan (LOCKED execution map — 2026-07-25)
+
+Full plan addressing external audit + codebase review:
+
+→ **`docs/BIRTHDAY_SHIP_PLAN.md`**
+
+Gift product = one ~10 min **Home Reef** loop on **iPad Safari**, not the UE5/7-biome vision doc.  
+Do not expand scope past that plan’s P0 without Carl sign-off.
+
 ## Current status (update as you go)
 
 | Area | Status | Notes |
@@ -58,6 +67,8 @@ If a change would ship placeholder creatures, flat water, or barren floor, **sto
 
 ## Changelog
 
+- **2026-07-25** — **Slice A gift ship:** One-tap Dive Home Reef; levels 1–3 only; sequential FirstDiveDirector; pearls-only HUD; Buddy local honesty; win sparkle; README/SHIP truth; smoke multi-port. Plan: `docs/BIRTHDAY_SHIP_PLAN.md`.
+- **2026-07-25** — **Full agent power pass:** Swim physics tidy (water drag, floor/surface, soft shark push, clean range 5.8m). Memory hero meshes upgraded (species-true turtle/manta/shark/jelly). Path litter raised to swim corridor + pulse juice. Home reef env denser (path coral, golden markers, god rays, anemones, wreck). FirstDiveDirector welcome/clean hints. Elder turtle findable + reachable pearl. Birthday pearl card + settings quality live apply. HUD chrome quieter. Build green.
 - **2026-07-17** — **Phase next (all):** Bigger archipelago (7 reefs, WORLD_MAP_EXTENT 160, seafloor 420). DiveBudget + HUD. RangerAlertSystem + HUD. BuddySession + BuddyDiveUI (create/join code, pose sync skeleton, remote diver mesh). Main menu Buddy Dive. Build green.
 - **2026-07-17** — **iPad full pass:** MobileControls (stick, look, Observe, Clean, puzzle D-pad, coach, portrait banner), SwimmerController touch API, BlockPuzzleSystem.slideSelected, QualitySettings tiers applied to Game/Post/Scene/Fish/Bubbles, pause=resume, win celebration + objective banner, viewport-fit=cover. Build green.
 - **2026-07-17** — **Creatures:** Replaced cone placeholders with `FishModels.ts` species builders (13+ animals: clownfish w/ ocellaris bands, angelfish disc, blue tang, parrotfish beak, shark, jellyfish+tentacles, seahorse, sea turtle+flippers, octopus, manta, lanternfish photophores, cleaner shrimp, giant squid). `FishSystem` rewired + same-species schooling + respawn. Build green.

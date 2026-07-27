@@ -24,7 +24,7 @@ export const REEF_ZONES: ReefZone[] = [
         radius: 15,
         shelfY: -2.5,
         color: '#00d4ff',
-        blurb: 'Dive start — coral garden & puzzle blocks',
+        blurb: 'Dive start — golden path, turtle friend, manta sky',
     },
     {
         id: 'east_garden',
@@ -84,7 +84,7 @@ export const REEF_ZONES: ReefZone[] = [
         radius: 11,
         shelfY: -5.0,
         color: '#4cc9f0',
-        blurb: 'Gateway to the deep — plan your Dive Budget',
+        blurb: 'Gateway to the deep — plan your air',
     },
 ];
 

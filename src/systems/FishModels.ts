@@ -438,73 +438,170 @@ function buildParrotfish(): CreatureBuild {
 
 function buildShark(): CreatureBuild {
     const group = new THREE.Group();
-    const bodyMat = mat(0x6a7580, { roughness: 0.65, metalness: 0.15 });
-    const bellyMat = mat(0xd8dde2, { roughness: 0.7 });
+    // Grey reef shark — sleek fusiform, countershaded, heterocercal tail
+    const bodyMat = mat(0x5a6570, { roughness: 0.52, metalness: 0.14 });
+    const darkMat = mat(0x3a4450, { roughness: 0.55, metalness: 0.12 });
+    const bellyMat = mat(0xe8ecf0, { roughness: 0.68 });
+    const gillMat = mat(0x2a3038, { roughness: 0.85 });
 
-    const body = fishBody(2.4, 0.55, 0.5, bodyMat);
+    // Custom sleek lathe: pointed snout, slim mid, taper to peduncle (not fat fish)
+    const pts: THREE.Vector2[] = [];
+    const segs = 20;
+    for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        // Torpedo profile — max girth ~35% from nose, slim tail stock
+        const nose = t < 0.08 ? t / 0.08 : 1;
+        const profile =
+            Math.pow(Math.sin(t * Math.PI), 0.85) * 0.88 +
+            Math.sin(t * Math.PI * 1.6) * 0.04;
+        const r = Math.max(0.018, profile * 0.26 * nose * (t > 0.82 ? 0.55 + (1 - t) * 2.5 : 1));
+        pts.push(new THREE.Vector2(r, (t - 0.5) * 2.55));
+    }
+    const bodyGeo = new THREE.LatheGeometry(pts, 16);
+    bodyGeo.rotateZ(-Math.PI / 2);
+    bodyGeo.scale(1.05, 0.92, 1); // slightly taller than wide (fusiform)
+    bodyGeo.computeVertexNormals();
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.castShadow = true;
+    body.receiveShadow = true;
     group.add(body);
 
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12), bellyMat);
-    belly.scale.set(0.7, 0.45, 1.6);
-    belly.position.set(0, -0.12, 0.1);
+    // White belly countershading strip
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), bellyMat);
+    belly.scale.set(0.62, 0.38, 1.85);
+    belly.position.set(0, -0.1, 0.08);
     group.add(belly);
 
-    // Dorsal fin (classic triangle)
-    const dorsal = fin(0.45, 0.55, bodyMat, 'triangle');
-    dorsal.position.set(0, 0.35, 0.1);
+    // Head / snout blunt-cone (grey reef has moderately pointed snout)
+    const snout = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.42, 12), bodyMat);
+    snout.rotation.x = Math.PI / 2;
+    snout.position.set(0, 0.01, 1.22);
+    snout.scale.set(1, 1, 0.9);
+    group.add(snout);
+    const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), bellyMat);
+    jaw.scale.set(0.9, 0.55, 1.1);
+    jaw.position.set(0, -0.06, 1.05);
+    group.add(jaw);
+
+    // Tall triangular first dorsal (classic shark silhouette)
+    const dorsalShape = new THREE.Shape();
+    dorsalShape.moveTo(0, 0);
+    dorsalShape.lineTo(0.08, 0.52);
+    dorsalShape.lineTo(0.42, 0.08);
+    dorsalShape.lineTo(0.28, 0);
+    dorsalShape.lineTo(0, 0);
+    const dorsal = new THREE.Mesh(new THREE.ShapeGeometry(dorsalShape), darkMat);
+    dorsal.position.set(0, 0.22, 0.12);
     dorsal.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+    dorsal.castShadow = true;
     group.add(dorsal);
 
-    // Heterocercal tail
-    const tail = fin(0.55, 0.7, bodyMat, 'fork');
-    tail.position.set(0, 0.05, -1.15);
-    tail.rotation.y = Math.PI / 2;
-    tail.scale.set(1, 1.2, 1);
-    group.add(tail);
+    // Small second dorsal
+    const d2 = fin(0.14, 0.16, darkMat, 'triangle');
+    d2.position.set(0, 0.16, -0.55);
+    d2.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+    d2.scale.set(0.7, 0.7, 0.7);
+    group.add(d2);
 
-    // Pectorals
-    const pec = fin(0.5, 0.22, bodyMat, 'triangle');
-    const pecL = pec.clone();
-    pecL.position.set(0.28, -0.05, 0.2);
-    pecL.rotation.set(0.3, Math.PI / 2, 0.5);
-    const pecR = pec.clone();
-    pecR.position.set(-0.28, -0.05, 0.2);
-    pecR.rotation.set(-0.3, Math.PI / 2, -0.5);
+    // Heterocercal caudal — upper lobe longer
+    const tailGroup = new THREE.Group();
+    const upperLobe = new THREE.Mesh(
+        (() => {
+            const s = new THREE.Shape();
+            s.moveTo(0, 0);
+            s.lineTo(0.55, 0.38);
+            s.lineTo(0.48, 0.12);
+            s.lineTo(0.12, 0);
+            s.lineTo(0, 0);
+            return new THREE.ShapeGeometry(s);
+        })(),
+        darkMat
+    );
+    upperLobe.rotation.y = Math.PI / 2;
+    const lowerLobe = new THREE.Mesh(
+        (() => {
+            const s = new THREE.Shape();
+            s.moveTo(0, 0);
+            s.lineTo(0.32, -0.22);
+            s.lineTo(0.28, -0.06);
+            s.lineTo(0.1, 0);
+            s.lineTo(0, 0);
+            return new THREE.ShapeGeometry(s);
+        })(),
+        darkMat
+    );
+    lowerLobe.rotation.y = Math.PI / 2;
+    tailGroup.add(upperLobe, lowerLobe);
+    tailGroup.position.set(0, 0.02, -1.22);
+    group.add(tailGroup);
+
+    // Pectoral fins — broad, swept slightly back/down
+    const pecGeo = (() => {
+        const s = new THREE.Shape();
+        s.moveTo(0, 0);
+        s.lineTo(0.55, 0.08);
+        s.lineTo(0.62, -0.06);
+        s.lineTo(0.15, -0.14);
+        s.lineTo(0, 0);
+        return new THREE.ShapeGeometry(s);
+    })();
+    const pecL = new THREE.Mesh(pecGeo, darkMat);
+    pecL.position.set(0.18, -0.06, 0.25);
+    pecL.rotation.set(0.55, 0.15, -0.85);
+    const pecR = pecL.clone();
+    pecR.position.x = -0.18;
+    pecR.rotation.set(-0.55, -0.15, 0.85);
     group.add(pecL, pecR);
 
-    // Snout
-    const snout = new THREE.Mesh(
-        new THREE.ConeGeometry(0.18, 0.45, 10),
-        bodyMat
-    );
-    snout.rotation.x = Math.PI / 2;
-    snout.position.set(0, 0, 1.15);
-    group.add(snout);
+    // Pelvic fins
+    const pel = fin(0.18, 0.1, darkMat, 'triangle');
+    const pelL = pel.clone();
+    pelL.position.set(0.1, -0.12, -0.25);
+    pelL.rotation.set(0.6, Math.PI / 2, 0.4);
+    pelL.scale.setScalar(0.7);
+    const pelR = pelL.clone();
+    pelR.position.x = -0.1;
+    pelR.rotation.z = -0.4;
+    group.add(pelL, pelR);
 
-    const eL = eye(0.04, 0.022);
-    eL.position.set(0.16, 0.06, 0.85);
-    const eR = eye(0.04, 0.022);
-    eR.position.set(-0.16, 0.06, 0.85);
+    // Anal fin
+    const anal = fin(0.12, 0.1, darkMat, 'triangle');
+    anal.position.set(0, -0.12, -0.55);
+    anal.rotation.set(Math.PI / 2, 0, Math.PI / 2);
+    anal.scale.setScalar(0.65);
+    group.add(anal);
+
+    // Dark lateral eyes (sharks — small, no big sclera)
+    const eL = eye(0.032, 0.02);
+    eL.position.set(0.14, 0.05, 0.88);
+    eL.scale.setScalar(0.85);
+    const eR = eye(0.032, 0.02);
+    eR.position.set(-0.14, 0.05, 0.88);
+    eR.scale.setScalar(0.85);
     group.add(eL, eR);
 
-    // Gills
-    for (let i = 0; i < 4; i++) {
-        const gill = new THREE.Mesh(
-            new THREE.BoxGeometry(0.02, 0.12, 0.02),
-            mat(0x333840, { roughness: 0.8 })
-        );
-        gill.position.set(0.22, 0, 0.55 - i * 0.08);
+    // Five gill slits each side
+    for (let i = 0; i < 5; i++) {
+        const gill = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.14 - i * 0.008, 0.018), gillMat);
+        gill.position.set(0.2, 0.01, 0.58 - i * 0.07);
+        gill.rotation.z = 0.15;
         group.add(gill);
         const gill2 = gill.clone();
-        gill2.position.x = -0.22;
+        gill2.position.x = -0.2;
+        gill2.rotation.z = -0.15;
         group.add(gill2);
     }
+
+    // Subtle dark dorsal ridge for countershading read
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 1.4), darkMat);
+    ridge.position.set(0, 0.18, 0.05);
+    group.add(ridge);
 
     group.scale.setScalar(1.4);
     return {
         group,
         mesh: body,
-        animParts: [tail, pecL, pecR, dorsal],
+        animParts: [tailGroup, pecL, pecR, dorsal],
         size: 2.2,
         swimSpeed: 2.2,
         animMode: 'fish',
@@ -513,59 +610,163 @@ function buildShark(): CreatureBuild {
 
 function buildJellyfish(): CreatureBuild {
     const group = new THREE.Group();
-    const bellMat = mat(0xff99cc, {
+    // Lantern jellyfish — translucent dome, pink/cyan biolum, oral arms + fringe tentacles
+    const bellMat = mat(0xb8e4ff, {
+        roughness: 0.12,
+        metalness: 0.02,
+        transparent: true,
+        opacity: 0.42,
+        emissive: 0x44bbff,
+        emissiveIntensity: 0.85,
+    });
+    const rimMat = mat(0x88d4ff, {
         roughness: 0.2,
-        metalness: 0.05,
         transparent: true,
         opacity: 0.55,
-        emissive: 0xff44aa,
-        emissiveIntensity: 0.35,
+        emissive: 0x66ccff,
+        emissiveIntensity: 0.6,
     });
-    const bell = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.55), bellMat);
-    bell.scale.set(1, 0.7, 1);
+    const gonadMat = mat(0xff88cc, {
+        roughness: 0.25,
+        transparent: true,
+        opacity: 0.8,
+        emissive: 0xff55aa,
+        emissiveIntensity: 1.05,
+    });
+    const armMat = mat(0xffb0d8, {
+        roughness: 0.3,
+        transparent: true,
+        opacity: 0.7,
+        emissive: 0xff66bb,
+        emissiveIntensity: 0.7,
+    });
+    const tentMat = mat(0xd0f0ff, {
+        roughness: 0.25,
+        transparent: true,
+        opacity: 0.5,
+        emissive: 0x77ddff,
+        emissiveIntensity: 0.55,
+    });
+
+    // Outer bell dome (half-sphere, slightly flattened)
+    const bell = new THREE.Mesh(
+        new THREE.SphereGeometry(0.58, 28, 20, 0, Math.PI * 2, 0, Math.PI * 0.58),
+        bellMat
+    );
+    bell.scale.set(1.05, 0.72, 1.05);
+    bell.castShadow = true;
     group.add(bell);
 
-    const inner = new THREE.Mesh(
-        new THREE.SphereGeometry(0.28, 12, 10),
-        mat(0xff66bb, { transparent: true, opacity: 0.7, emissive: 0xff2288, emissiveIntensity: 0.5 })
+    // Bell rim / lappet ring
+    const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.52, 0.045, 8, 28),
+        rimMat
     );
-    inner.position.y = -0.05;
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = -0.12;
+    rim.scale.set(1, 1, 0.55);
+    group.add(rim);
+
+    // Inner subumbrella glow layer
+    const inner = new THREE.Mesh(
+        new THREE.SphereGeometry(0.42, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.5),
+        mat(0xffccee, {
+            transparent: true,
+            opacity: 0.35,
+            emissive: 0xff88cc,
+            emissiveIntensity: 0.55,
+        })
+    );
+    inner.scale.set(1, 0.65, 1);
+    inner.position.y = -0.02;
     group.add(inner);
 
-    const tentacles: THREE.Object3D[] = [];
-    const tentMat = mat(0xffaadd, {
-        transparent: true,
-        opacity: 0.65,
-        emissive: 0xff66aa,
-        emissiveIntensity: 0.25,
-    });
-    for (let i = 0; i < 12; i++) {
-        const ang = (i / 12) * Math.PI * 2;
-        const tent = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.025, 0.01, 1.2, 6),
-            tentMat
-        );
-        tent.position.set(Math.cos(ang) * 0.28, -0.7, Math.sin(ang) * 0.28);
-        tent.userData.baseY = tent.position.y;
-        tent.userData.phase = i * 0.4;
-        group.add(tent);
-        tentacles.push(tent);
+    // Four gonads / radial canals (lantern pink lobes)
+    for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const gonad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), gonadMat);
+        gonad.scale.set(1.1, 0.7, 0.85);
+        gonad.position.set(Math.cos(ang) * 0.18, -0.02, Math.sin(ang) * 0.18);
+        group.add(gonad);
     }
 
-    // Oral arms (thicker center)
+    // Manubrium (central mouth stalk)
+    const manubrium = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.1, 0.22, 10),
+        armMat
+    );
+    manubrium.position.y = -0.18;
+    group.add(manubrium);
+
+    // Soft point light — living lantern
+    const glow = new THREE.PointLight(0xaaddff, 0.85, 7);
+    glow.position.set(0, -0.05, 0);
+    group.add(glow);
+    const pinkGlow = new THREE.PointLight(0xff88cc, 0.35, 4);
+    pinkGlow.position.set(0, -0.15, 0);
+    group.add(pinkGlow);
+
+    const tentacles: THREE.Object3D[] = [];
+
+    // Thick oral arms (4) — frilly, longer, multi-segment for silhouette
     for (let i = 0; i < 4; i++) {
-        const ang = (i / 4) * Math.PI * 2 + 0.2;
-        const arm = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.05, 0.02, 0.7, 6),
-            mat(0xff77bb, { transparent: true, opacity: 0.7, emissive: 0xff3399, emissiveIntensity: 0.3 })
+        const ang = (i / 4) * Math.PI * 2 + 0.15;
+        const arm = new THREE.Group();
+        const upper = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.055, 0.04, 0.45, 8),
+            armMat
         );
-        arm.position.set(Math.cos(ang) * 0.1, -0.45, Math.sin(ang) * 0.1);
-        arm.userData.phase = i;
+        upper.position.y = -0.22;
+        const mid = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, 0.055, 0.4, 8),
+            armMat
+        );
+        mid.position.y = -0.62;
+        // Frill knobs along arm
+        for (let k = 0; k < 3; k++) {
+            const knob = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), armMat);
+            knob.position.set(0.03, -0.25 - k * 0.2, 0);
+            arm.add(knob);
+        }
+        arm.add(upper, mid);
+        arm.position.set(Math.cos(ang) * 0.12, -0.15, Math.sin(ang) * 0.12);
+        arm.userData.baseY = arm.position.y;
+        arm.userData.phase = i * 0.9 + 0.3;
         group.add(arm);
         tentacles.push(arm);
     }
 
-    group.scale.setScalar(1.1);
+    // Outer fringe tentacles — many, thin, phase-varied
+    for (let i = 0; i < 18; i++) {
+        const ang = (i / 18) * Math.PI * 2;
+        const len = 1.05 + (i % 3) * 0.12;
+        const tent = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.018, 0.006, len, 5),
+            tentMat
+        );
+        const r = 0.38 + (i % 2) * 0.06;
+        tent.position.set(Math.cos(ang) * r, -0.55 - len * 0.35, Math.sin(ang) * r);
+        tent.userData.baseY = tent.position.y;
+        tent.userData.phase = i * 0.37 + (i % 5) * 0.11;
+        group.add(tent);
+        tentacles.push(tent);
+    }
+
+    // Mid-ring secondary tentacles for density
+    for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2 + 0.2;
+        const tent = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.014, 0.005, 0.85, 5),
+            tentMat
+        );
+        tent.position.set(Math.cos(ang) * 0.28, -0.58, Math.sin(ang) * 0.28);
+        tent.userData.baseY = tent.position.y;
+        tent.userData.phase = i * 0.55 + 1.2;
+        group.add(tent);
+        tentacles.push(tent);
+    }
+
+    group.scale.setScalar(1.15);
     return {
         group,
         mesh: bell,
@@ -659,80 +860,204 @@ function buildSeahorse(): CreatureBuild {
 
 function buildSeaTurtle(): CreatureBuild {
     const group = new THREE.Group();
-    const shellMat = mat(0x3d5c3a, { roughness: 0.7, metalness: 0.05 });
-    const plateMat = mat(0x5a7a40, { roughness: 0.65 });
-    const skinMat = mat(0x6b8f5e, { roughness: 0.6 });
+    // Green sea turtle — olive/amber carapace scutes, cream plastron, paddle flippers, beaked head
+    const shellMat = mat(0x4a7030, {
+        roughness: 0.58,
+        metalness: 0.04,
+        emissive: 0x1a3010,
+        emissiveIntensity: 0.12,
+    });
+    const scuteOlive = mat(0x6a8c38, {
+        roughness: 0.52,
+        emissive: 0x284018,
+        emissiveIntensity: 0.1,
+    });
+    const scuteAmber = mat(0x8a9a40, {
+        roughness: 0.5,
+        emissive: 0x3a4818,
+        emissiveIntensity: 0.1,
+    });
+    const scuteDark = mat(0x3d5a28, { roughness: 0.55, emissive: 0x1a2810, emissiveIntensity: 0.08 });
+    const skinMat = mat(0x8a9a58, { roughness: 0.55 });
+    const skinDark = mat(0x6a7a40, { roughness: 0.58 });
+    const plastronMat = mat(0xf0e4c4, { roughness: 0.72 });
+    const beakMat = mat(0xc8b878, { roughness: 0.4, metalness: 0.08 });
 
-    // Domed shell
+    // Domed carapace base
     const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(0.55, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+        new THREE.SphereGeometry(0.64, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.58),
         shellMat
     );
-    shell.scale.set(1.1, 0.65, 1.25);
-    shell.position.y = 0.1;
+    shell.scale.set(1.22, 0.75, 1.38);
+    shell.position.y = 0.14;
     shell.castShadow = true;
+    shell.receiveShadow = true;
     group.add(shell);
 
-    // Scute pattern (plates)
+    // Central vertebral scutes (5 hex plates along spine) — green turtle pattern
+    const centralZ = [-0.42, -0.2, 0.02, 0.24, 0.44];
     for (let i = 0; i < 5; i++) {
-        for (let j = 0; j < 3; j++) {
+        const plate = new THREE.Mesh(
+            new THREE.CircleGeometry(0.15 - Math.abs(i - 2) * 0.012, 6),
+            i % 2 === 0 ? scuteOlive : scuteAmber
+        );
+        plate.rotation.x = -Math.PI / 2 + 0.08;
+        plate.position.set(0, 0.48 + Math.sin((i / 4) * Math.PI) * 0.04, centralZ[i]);
+        plate.scale.set(1.05, 1.15, 1);
+        group.add(plate);
+        // Raised hex volume for depth
+        const bump = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.11, 0.13, 0.04, 6),
+            i % 2 === 0 ? scuteDark : scuteOlive
+        );
+        bump.position.copy(plate.position);
+        bump.position.y -= 0.02;
+        bump.rotation.y = Math.PI / 6;
+        group.add(bump);
+    }
+
+    // Costal (lateral) scutes — 4 each side
+    for (let side = -1; side <= 1; side += 2) {
+        for (let j = 0; j < 4; j++) {
+            const z = -0.35 + j * 0.22;
             const plate = new THREE.Mesh(
-                new THREE.CircleGeometry(0.12, 6),
-                plateMat
+                new THREE.CircleGeometry(0.13, 6),
+                (j + (side > 0 ? 1 : 0)) % 2 === 0 ? scuteAmber : scuteOlive
             );
-            plate.rotation.x = -Math.PI / 2;
-            plate.position.set((i - 2) * 0.18, 0.38, (j - 1) * 0.22);
-            plate.position.y += 0.05;
+            plate.rotation.x = -Math.PI / 2 + 0.12;
+            plate.rotation.z = side * 0.15;
+            plate.position.set(side * 0.32, 0.4, z);
             group.add(plate);
+            const bump = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.09, 0.11, 0.035, 6),
+                scuteDark
+            );
+            bump.position.set(side * 0.32, 0.38, z);
+            bump.rotation.y = Math.PI / 6;
+            group.add(bump);
         }
     }
 
-    // Plastron
-    const belly = new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 16, 10),
-        mat(0xc4b896, { roughness: 0.75 })
-    );
-    belly.scale.set(1.0, 0.35, 1.15);
+    // Marginal scute ring along shell edge
+    for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.1), scuteDark);
+        m.position.set(Math.sin(ang) * 0.68, 0.18, Math.cos(ang) * 0.78);
+        m.rotation.y = ang;
+        m.rotation.x = 0.35;
+        group.add(m);
+    }
+
+    // Cream plastron (undershell)
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 12), plastronMat);
+    belly.scale.set(1.1, 0.32, 1.25);
     belly.position.y = -0.05;
     group.add(belly);
+    // Plastron seam lines
+    for (let i = 0; i < 3; i++) {
+        const seam = new THREE.Mesh(
+            new THREE.BoxGeometry(0.9, 0.01, 0.015),
+            mat(0xd8c8a0, { roughness: 0.75 })
+        );
+        seam.position.set(0, -0.12, -0.25 + i * 0.22);
+        group.add(seam);
+    }
 
-    // Head
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), skinMat);
-    head.scale.set(0.9, 0.85, 1.3);
-    head.position.set(0, 0.05, 0.7);
+    // Neck
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.22, 10), skinMat);
+    neck.rotation.x = Math.PI / 2;
+    neck.position.set(0, 0.06, 0.72);
+    group.add(neck);
+    // Neck scale rings
+    for (let i = 0; i < 3; i++) {
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(0.11 - i * 0.01, 0.018, 6, 12),
+            skinDark
+        );
+        ring.position.set(0, 0.06, 0.65 + i * 0.07);
+        ring.rotation.y = Math.PI / 2;
+        group.add(ring);
+    }
+
+    // Head with distinct green-turtle beak
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 12), skinMat);
+    head.scale.set(0.95, 0.88, 1.25);
+    head.position.set(0, 0.1, 0.95);
     group.add(head);
+    // Prefrontal scales on snout
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.12), skinDark);
+    brow.position.set(0, 0.2, 1.0);
+    group.add(brow);
+    // Beak (pointed upper jaw)
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 8), beakMat);
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, 0.04, 1.18);
+    group.add(beak);
+    const lowerJaw = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), beakMat);
+    lowerJaw.scale.set(0.9, 0.5, 1.2);
+    lowerJaw.position.set(0, 0.0, 1.12);
+    group.add(lowerJaw);
 
-    const eL = eye(0.035, 0.02);
-    eL.position.set(0.1, 0.1, 0.85);
-    const eR = eye(0.035, 0.02);
-    eR.position.set(-0.1, 0.1, 0.85);
+    const eL = eye(0.042, 0.024);
+    eL.position.set(0.12, 0.14, 1.05);
+    const eR = eye(0.042, 0.024);
+    eR.position.set(-0.12, 0.14, 1.05);
     group.add(eL, eR);
 
-    // Flippers
+    // Paddle flippers — front much larger, tapered like real green turtle
     const flippers: THREE.Object3D[] = [];
-    const makeFlipper = (x: number, z: number, scale: number) => {
-        const f = new THREE.Mesh(
-            new THREE.SphereGeometry(0.2, 12, 8),
-            skinMat
-        );
-        f.scale.set(scale * 0.35, 0.12, scale);
-        f.position.set(x, -0.02, z);
+    const makePaddle = (
+        x: number,
+        z: number,
+        len: number,
+        width: number,
+        isFront: boolean
+    ) => {
+        const f = new THREE.Group();
+        // Main paddle blade
+        const blade = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), skinMat);
+        blade.scale.set(width, 0.12, len);
+        blade.castShadow = true;
+        f.add(blade);
+        // Leading edge darker scale strip
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(width * 0.15, 0.04, len * 0.7), skinDark);
+        edge.position.set(x > 0 ? 0.06 : -0.06, 0.02, 0.05);
+        f.add(edge);
+        // Scale plates on flipper
+        for (let s = 0; s < (isFront ? 4 : 3); s++) {
+            const sc = new THREE.Mesh(
+                new THREE.CircleGeometry(0.05, 5),
+                skinDark
+            );
+            sc.rotation.x = -Math.PI / 2;
+            sc.position.set(0, 0.06, -0.12 + s * 0.12);
+            f.add(sc);
+        }
+        f.position.set(x, isFront ? 0.0 : -0.04, z);
         f.rotation.z = x > 0 ? -0.4 : 0.4;
+        f.rotation.y = x > 0 ? 0.25 : -0.25;
+        if (!isFront) f.rotation.x = 0.15;
         group.add(f);
         flippers.push(f);
         return f;
     };
-    makeFlipper(0.55, 0.25, 1.1);
-    makeFlipper(-0.55, 0.25, 1.1);
-    makeFlipper(0.4, -0.45, 0.7);
-    makeFlipper(-0.4, -0.45, 0.7);
+    makePaddle(0.78, 0.22, 1.45, 0.55, true);
+    makePaddle(-0.78, 0.22, 1.45, 0.55, true);
+    makePaddle(0.52, -0.58, 0.95, 0.38, false);
+    makePaddle(-0.52, -0.58, 0.95, 0.38, false);
 
-    group.scale.setScalar(1.5);
+    // Short tail stub
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 6), skinDark);
+    tail.rotation.x = -Math.PI / 2;
+    tail.position.set(0, -0.02, -0.85);
+    group.add(tail);
+
+    group.scale.setScalar(1.65);
     return {
         group,
         mesh: shell,
         animParts: flippers,
-        size: 1.8,
+        size: 2.1,
         swimSpeed: 1.0,
         animMode: 'glide',
     };
@@ -804,57 +1129,172 @@ function buildOctopus(): CreatureBuild {
 
 function buildManta(): CreatureBuild {
     const group = new THREE.Group();
-    const top = mat(0x2c3e50, { roughness: 0.55, metalness: 0.08 });
-    const belly = mat(0xecf0f1, { roughness: 0.65 });
+    // Reef/manta ray — black dorsal, white ventral, huge wings, cephalic lobes, whip tail
+    const top = mat(0x141c28, {
+        roughness: 0.48,
+        metalness: 0.1,
+        emissive: 0x060c14,
+        emissiveIntensity: 0.1,
+    });
+    const topSoft = mat(0x1e2838, { roughness: 0.5, metalness: 0.08 });
+    const belly = mat(0xf4f7fa, { roughness: 0.62 });
+    const bellyMark = mat(0xe8ecf0, { roughness: 0.65 });
+    const darkEdge = mat(0x0c1218, { roughness: 0.55 });
 
-    // Wide wing body
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), top);
-    body.scale.set(2.4, 0.25, 1.1);
+    // Central disc body
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 22, 16), top);
+    body.scale.set(1.35, 0.28, 1.2);
     body.castShadow = true;
+    body.receiveShadow = true;
     group.add(body);
 
-    const bellyM = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), belly);
-    bellyM.scale.set(2.2, 0.18, 1.0);
-    bellyM.position.y = -0.06;
+    // White ventral disc
+    const bellyM = new THREE.Mesh(new THREE.SphereGeometry(0.44, 18, 14), belly);
+    bellyM.scale.set(1.25, 0.18, 1.1);
+    bellyM.position.y = -0.07;
     group.add(bellyM);
 
-    // Cephalic fins
-    const lobeL = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 8), top);
-    lobeL.rotation.x = Math.PI / 2;
-    lobeL.position.set(0.35, 0, 0.65);
-    const lobeR = lobeL.clone();
-    lobeR.position.x = -0.35;
-    group.add(lobeL, lobeR);
+    // Classic manta white shoulder patches on belly (species-true)
+    for (const sx of [-1, 1]) {
+        const patch = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), bellyMark);
+        patch.scale.set(0.9, 0.25, 1.1);
+        patch.position.set(sx * 0.35, -0.09, 0.15);
+        group.add(patch);
+    }
 
-    // Wings tips
-    const tipL = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), top);
-    tipL.scale.set(0.8, 0.2, 0.5);
-    tipL.position.set(1.3, 0, 0);
-    const tipR = tipL.clone();
-    tipR.position.x = -1.3;
+    // Wing panels — multi-segment for diamond manta silhouette
+    const makeWing = (side: number) => {
+        const wing = new THREE.Group();
+        // Inner wing plate
+        const inner = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), top);
+        inner.scale.set(1.35, 0.16, 0.95);
+        inner.position.set(side * 0.85, 0.01, -0.05);
+        inner.rotation.z = side * 0.08;
+        inner.castShadow = true;
+        wing.add(inner);
+        // Mid wing
+        const mid = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), topSoft);
+        mid.scale.set(1.2, 0.14, 0.75);
+        mid.position.set(side * 1.45, 0.04, -0.08);
+        mid.rotation.z = side * 0.18;
+        wing.add(mid);
+        // White underside of wing
+        const wBelly = new THREE.Mesh(new THREE.SphereGeometry(0.36, 12, 8), belly);
+        wBelly.scale.set(1.3, 0.1, 0.85);
+        wBelly.position.set(side * 0.95, -0.05, -0.05);
+        wing.add(wBelly);
+        // Leading edge dark rim
+        const lead = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 0.08), darkEdge);
+        lead.position.set(side * 1.0, 0.02, 0.35);
+        lead.rotation.y = side * -0.2;
+        lead.rotation.z = side * 0.1;
+        wing.add(lead);
+        group.add(wing);
+        return wing;
+    };
+    makeWing(1);
+    makeWing(-1);
+
+    // Wing tips — curved slightly UP for classic manta silhouette against water
+    const tipL = new THREE.Group();
+    const tipMeshL = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), top);
+    tipMeshL.scale.set(1.15, 0.14, 0.5);
+    tipMeshL.castShadow = true;
+    tipL.add(tipMeshL);
+    const tipCurlL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), darkEdge);
+    tipCurlL.scale.set(0.7, 0.35, 0.9);
+    tipCurlL.position.set(0.12, 0.08, -0.05);
+    tipL.add(tipCurlL);
+    tipL.position.set(1.95, 0.12, -0.12);
+    tipL.rotation.z = 0.35; // tip up
+    tipL.rotation.y = -0.15;
+
+    const tipR = new THREE.Group();
+    const tipMeshR = tipMeshL.clone();
+    tipR.add(tipMeshR);
+    const tipCurlR = tipCurlL.clone();
+    tipCurlR.position.x = -0.12;
+    tipR.add(tipCurlR);
+    tipR.position.set(-1.95, 0.12, -0.12);
+    tipR.rotation.z = -0.35;
+    tipR.rotation.y = 0.15;
     group.add(tipL, tipR);
 
-    // Tail whip
-    const tail = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.04, 0.01, 1.2, 6),
-        top
-    );
-    tail.rotation.x = Math.PI / 2;
-    tail.position.set(0, 0, -0.9);
-    group.add(tail);
+    // Cephalic lobes (horn-like, rollable feeding lobes)
+    const makeLobe = (side: number) => {
+        const lobe = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.28, 8), top);
+        base.rotation.x = Math.PI / 2;
+        base.position.set(0, 0, 0.1);
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), topSoft);
+        tip.scale.set(0.7, 0.9, 1.3);
+        tip.position.set(0, -0.02, 0.28);
+        // Slight inward curl
+        const curl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), darkEdge);
+        curl.position.set(side * -0.04, -0.04, 0.32);
+        lobe.add(base, tip, curl);
+        lobe.position.set(side * 0.38, -0.02, 0.72);
+        lobe.rotation.x = 0.35;
+        lobe.rotation.z = side * 0.25;
+        lobe.rotation.y = side * -0.2;
+        group.add(lobe);
+        return lobe;
+    };
+    const lobeL = makeLobe(1);
+    const lobeR = makeLobe(-1);
 
+    // Head / mouth region
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), top);
+    head.scale.set(1.1, 0.45, 0.85);
+    head.position.set(0, 0, 0.55);
+    group.add(head);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 0.08), belly);
+    mouth.position.set(0, -0.06, 0.72);
+    group.add(mouth);
+
+    // Thin whip tail (manta has long filamentous tail, no spine barb like stingray)
+    const tailBase = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 8), top);
+    tailBase.rotation.x = -Math.PI / 2;
+    tailBase.position.set(0, 0, -0.7);
+    group.add(tailBase);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.008, 1.55, 6), top);
+    tail.rotation.x = Math.PI / 2;
+    tail.position.set(0, -0.02, -1.45);
+    group.add(tail);
+    // Tiny dorsal finlet at tail base
+    const finlet = fin(0.1, 0.08, top, 'triangle');
+    finlet.position.set(0, 0.08, -0.75);
+    finlet.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+    finlet.scale.setScalar(0.6);
+    group.add(finlet);
+
+    // Eyes on sides of head
     const eL = eye(0.04, 0.02);
-    eL.position.set(0.25, 0.08, 0.45);
+    eL.position.set(0.32, 0.06, 0.55);
+    eL.scale.setScalar(0.9);
     const eR = eye(0.04, 0.02);
-    eR.position.set(-0.25, 0.08, 0.45);
+    eR.position.set(-0.32, 0.06, 0.55);
+    eR.scale.setScalar(0.9);
     group.add(eL, eR);
 
-    group.scale.setScalar(1.6);
+    // Subtle gill slits on ventral (5 each side — filter feeder cue)
+    for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 5; i++) {
+            const g = new THREE.Mesh(
+                new THREE.BoxGeometry(0.12, 0.008, 0.015),
+                mat(0xc8d0d8, { roughness: 0.7 })
+            );
+            g.position.set(side * (0.15 + i * 0.02), -0.11, 0.2 - i * 0.08);
+            group.add(g);
+        }
+    }
+
+    group.scale.setScalar(1.85);
     return {
         group,
         mesh: body,
         animParts: [tipL, tipR, lobeL, lobeR],
-        size: 2.5,
+        size: 3.2,
         swimSpeed: 1.4,
         animMode: 'glide',
     };

@@ -195,21 +195,49 @@ export class AssetLibrary {
         if (this.creatureTemplates.has(key)) {
             return this.creatureTemplates.get(key)!;
         }
-        // aliases
+        // aliases (same-family only — never shark→barramundi)
         const aliases: Record<string, string> = {
             reef_shark: 'shark',
             sea_turtle: 'seaturtle',
             manta_ray: 'manta',
+            // stylized school fish may share GLBs when exact missing
             angelfish: 'butterfly_fish',
-            blue_tang: 'mandarin_fish',
-            clownfish: 'goldfish',
         };
         const a = aliases[key];
         if (a && this.creatureTemplates.has(a)) return this.creatureTemplates.get(a)!;
-        // fish-shaped fall back to barramundi / goldfish / butterfly
-        const fishy = ['clownfish', 'angelfish', 'blue_tang', 'parrotfish', 'shark', 'lanternfish', 'goldfish'];
+
+        // Heroes must use procedural FishModels if no exact GLB
+        // (shark/manta/turtle/jelly/octopus never become barramundi)
+        const neverFallback = new Set([
+            'shark',
+            'reef_shark',
+            'manta',
+            'manta_ray',
+            'seaturtle',
+            'sea_turtle',
+            'jellyfish',
+            'octopus',
+            'seahorse',
+            'giant_squid',
+            'cleaner_shrimp',
+        ]);
+        if (neverFallback.has(key)) return null;
+
+        // School fish only → barramundi/goldfish tint
+        const fishy = [
+            'clownfish',
+            'angelfish',
+            'blue_tang',
+            'parrotfish',
+            'lanternfish',
+            'goldfish',
+            'butterfly_fish',
+            'mandarin_fish',
+            'barramundi',
+        ];
         if (fishy.includes(key)) {
             return (
+                this.creatureTemplates.get(key) ||
                 this.creatureTemplates.get('barramundi') ||
                 this.creatureTemplates.get('goldfish') ||
                 this.creatureTemplates.get('butterfly_fish') ||

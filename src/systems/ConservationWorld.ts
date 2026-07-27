@@ -20,6 +20,17 @@ interface LitterProp {
     id: string;
     mesh: THREE.Object3D;
     position: THREE.Vector3;
+    /** Golden-path demo trash — stronger pulse so first-clean is obvious */
+    homePath?: boolean;
+    /** Rest scale for pulse animation (home-path only) */
+    baseScale?: number;
+}
+
+/** Short-lived collect flash (light + ring) so clean feels rewarding mid-frame */
+interface CollectFlash {
+    group: THREE.Group;
+    life: number;
+    maxLife: number;
 }
 
 interface TrappedFish {
@@ -52,6 +63,7 @@ export class ConservationWorld {
     private physicsWorld?: PhysicsWorld;
     private litter: LitterProp[] = [];
     private nets: GhostNetProp[] = [];
+    private collectFlashes: CollectFlash[] = [];
     private root: THREE.Group;
     private time = 0;
     private idSeq = 0;
@@ -70,8 +82,10 @@ export class ConservationWorld {
 
     async init(): Promise<void> {
         this.scene.add(this.root);
-        this.spawnLitter(6 + Math.floor(Math.random() * 5)); // fewer, on reefs only
-        this.spawnGhostNets(2 + Math.floor(Math.random() * 2));
+        // Mock plate: visible trash near home + scattered
+        this.spawnLitter(10 + Math.floor(Math.random() * 4));
+        this.spawnGhostNets(3);
+        this.spawnHomeReefDemoTrash();
         console.log(
             `♻️ ConservationWorld ready: ${this.litter.length} litter, ${this.nets.length} ghost nets`
         );
@@ -80,11 +94,56 @@ export class ConservationWorld {
     update(dt: number): void {
         this.time += dt;
 
-        // Gentle bob on remaining litter
+        // Gentle bob on remaining litter; home-path items pulse (scale + light) to "call" player
         for (const item of this.litter) {
-            const bob = Math.sin(this.time * 1.5 + item.position.x) * 0.05;
+            const phase = this.time * 2.4 + item.position.x * 0.7 + item.position.z * 0.3;
+            const bobAmp = item.homePath ? 0.14 : 0.05;
+            const bob = Math.sin(this.time * 1.5 + item.position.x) * bobAmp;
             item.mesh.position.y = item.position.y + bob;
-            item.mesh.rotation.y += dt * 0.3;
+            item.mesh.rotation.y += dt * (item.homePath ? 0.55 : 0.3);
+
+            if (item.homePath) {
+                const base = item.baseScale ?? 1;
+                const pulse = 1 + Math.sin(phase) * 0.14;
+                item.mesh.scale.setScalar(base * pulse);
+
+                // Bob PointLight intensity so trash reads from SPAWN corridor
+                const lightPulse = 0.5 + 0.5 * Math.sin(phase * 1.15);
+                item.mesh.traverse((obj) => {
+                    const light = obj as THREE.PointLight;
+                    if (light.isPointLight) {
+                        const baseI = (light.userData.baseIntensity as number) ?? 1.1;
+                        light.intensity = baseI * (0.75 + 0.45 * lightPulse);
+                    }
+                });
+            }
+        }
+
+        // Collect flash juice fade-out
+        for (let i = this.collectFlashes.length - 1; i >= 0; i--) {
+            const flash = this.collectFlashes[i];
+            flash.life += dt;
+            const t = flash.life / flash.maxLife;
+            const s = 1 + t * 2.2;
+            flash.group.scale.setScalar(s);
+            flash.group.traverse((obj) => {
+                const light = obj as THREE.PointLight;
+                if (light.isPointLight) {
+                    light.intensity = ((light.userData.baseIntensity as number) ?? 2) * (1 - t);
+                }
+                const mesh = obj as THREE.Mesh;
+                if (mesh.isMesh && mesh.material) {
+                    const mat = mesh.material as THREE.MeshBasicMaterial;
+                    if ('opacity' in mat) {
+                        mat.opacity = Math.max(0, 0.85 * (1 - t));
+                    }
+                }
+            });
+            if (flash.life >= flash.maxLife) {
+                this.root.remove(flash.group);
+                this.disposeObject(flash.group);
+                this.collectFlashes.splice(i, 1);
+            }
         }
 
         // Ghost net idle sway + free animation
@@ -150,11 +209,21 @@ export class ConservationWorld {
     tryCollectLitter(position: THREE.Vector3, range: number): LitterCollectResult {
         const ids: string[] = [];
         const remaining: LitterProp[] = [];
+        // Use first collected item world pos for bubble burst (caller still gets player pos too via event)
+        let burstPos: THREE.Vector3 | null = null;
 
         for (const item of this.litter) {
             const dist = item.mesh.position.distanceTo(position);
             if (dist <= range) {
                 ids.push(item.id);
+                const worldPos = new THREE.Vector3();
+                item.mesh.getWorldPosition(worldPos);
+                if (!burstPos) burstPos = worldPos.clone();
+
+                // Brief emissive pop before remove (visible as flash + lingering light)
+                this.boostEmissiveFlash(item.mesh);
+                this.spawnCollectFlash(worldPos, item.homePath ? 1.35 : 1);
+
                 this.root.remove(item.mesh);
                 this.disposeObject(item.mesh);
             } else {
@@ -169,7 +238,8 @@ export class ConservationWorld {
                 this.onCollect?.({
                     kind: 'litter',
                     ids: [...ids],
-                    position: position.clone(),
+                    // Prefer litter world pos so bubbles pop on the trash, not only at player
+                    position: (burstPos ?? position).clone(),
                 });
             } catch (e) {
                 console.warn('ConservationWorld onCollect callback failed:', e);
@@ -293,6 +363,176 @@ export class ConservationWorld {
             this.root.add(mesh);
             this.litter.push({ id, mesh, position: pos.clone() });
         }
+    }
+
+    /** Guaranteed trash near spawn — mock plate “first clean” moment */
+    private spawnHomeReefDemoTrash(): void {
+        // Swim corridor (SPAWN ~y=2.4): litter sits readable mid-water, slightly above sand (~-2.5)
+        // Y range ~0.4–1.2 so trash is on the golden path, not buried below camera
+        const spots: [number, number, number][] = [
+            [1.8, 0.55, 5.5],
+            [-1.5, 0.85, 6.5],
+            [2.2, 0.45, 8],
+            [-2.0, 1.05, 9],
+            [1.2, 0.65, 11],
+            [-1.8, 1.15, 12.5],
+            [2.5, 0.5, 14],
+            [0.5, 0.75, 7.2],
+        ];
+        const colors = [0xffee00, 0xffffff, 0xff2244, 0x33ccff];
+        spots.forEach((pos, i) => {
+            const color = colors[i % colors.length];
+            const mesh =
+                i % 3 === 0
+                    ? this.makeCan(color)
+                    : i % 3 === 1
+                      ? this.makeBottle(color)
+                      : this.makeBag(color);
+            mesh.position.set(pos[0], pos[1], pos[2]);
+            // Large + readable on first swim (scale ~1.8–2.2)
+            const scaleMul = 1.85 + (i % 4) * 0.1;
+            mesh.scale.multiplyScalar(scaleMul);
+            this.boostLitterEmissive(mesh, 0.72);
+
+            const id = this.nextId('litter');
+            mesh.userData = { kind: 'litter', id, homePath: true };
+
+            // Strong glow so trash “calls” from SPAWN corridor
+            const lightIntensity = 0.95 + (i % 3) * 0.15; // 0.95–1.25
+            const lightDist = 5.5 + (i % 3) * 0.5; // 5.5–6.5
+            const glow = new THREE.PointLight(color, lightIntensity, lightDist);
+            glow.position.set(0, 0.3, 0);
+            glow.userData.baseIntensity = lightIntensity;
+            mesh.add(glow);
+
+            // Ground ring (under item, slightly larger for path readability)
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(0.42, 0.62, 20),
+                new THREE.MeshBasicMaterial({
+                    color: 0xffd166,
+                    transparent: true,
+                    opacity: 0.7,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                })
+            );
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = -0.35;
+            mesh.add(ring);
+
+            this.root.add(mesh);
+            this.litter.push({
+                id,
+                mesh,
+                position: new THREE.Vector3(pos[0], pos[1], pos[2]),
+                homePath: true,
+                baseScale: mesh.scale.x,
+            });
+        });
+
+        // Ghost net on path right — swimmable Y, larger, slightly emissive
+        const netId = this.nextId('net');
+        const net = this.makeNetStructure();
+        this.boostLitterEmissive(net, 0.45);
+        // Tint net materials a bit brighter so it reads mid-water
+        net.traverse((obj) => {
+            const mesh = obj as THREE.Mesh;
+            if (mesh.isMesh && mesh.material) {
+                const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                for (const m of mats) {
+                    const mat = m as THREE.MeshStandardMaterial;
+                    if ('emissive' in mat) {
+                        mat.emissive = new THREE.Color(0x445566);
+                        mat.emissiveIntensity = Math.max(mat.emissiveIntensity ?? 0, 0.4);
+                        mat.needsUpdate = true;
+                    }
+                }
+            }
+        });
+        net.scale.multiplyScalar(2.0);
+        net.position.set(4.5, 2.0, 10); // ~1.5–2.5 swim band
+        const netGlow = new THREE.PointLight(0x88aacc, 0.85, 6);
+        netGlow.position.set(0, 0.2, 0);
+        net.add(netGlow);
+        net.userData = { kind: 'ghost_net', id: netId, freed: false };
+        this.root.add(net);
+        this.nets.push({
+            id: netId,
+            group: net,
+            position: net.position.clone(),
+            trappedFish: [],
+            freed: false,
+            freeAnim: 0,
+        });
+    }
+
+    /** Raise emissive on litter meshes (home path only — multi-reef factories unchanged) */
+    private boostLitterEmissive(root: THREE.Object3D, minIntensity: number): void {
+        root.traverse((obj) => {
+            const mesh = obj as THREE.Mesh;
+            if (!mesh.isMesh || !mesh.material) return;
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const m of mats) {
+                const mat = m as THREE.MeshStandardMaterial;
+                if ('emissiveIntensity' in mat) {
+                    mat.emissiveIntensity = Math.max(mat.emissiveIntensity ?? 0, minIntensity);
+                    mat.needsUpdate = true;
+                }
+            }
+        });
+    }
+
+    /** Instant material pop used the frame litter is collected */
+    private boostEmissiveFlash(root: THREE.Object3D): void {
+        root.traverse((obj) => {
+            const mesh = obj as THREE.Mesh;
+            if (!mesh.isMesh || !mesh.material) return;
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const m of mats) {
+                const mat = m as THREE.MeshStandardMaterial;
+                if ('emissiveIntensity' in mat) {
+                    mat.emissiveIntensity = Math.max(mat.emissiveIntensity ?? 0, 1.6);
+                    mat.needsUpdate = true;
+                }
+            }
+        });
+    }
+
+    /** Expanding ring + point light that fades in update() */
+    private spawnCollectFlash(worldPos: THREE.Vector3, sizeMul = 1): void {
+        const group = new THREE.Group();
+        group.position.copy(worldPos);
+
+        const light = new THREE.PointLight(0xaaffff, 2.4 * sizeMul, 7 * sizeMul);
+        light.userData.baseIntensity = 2.4 * sizeMul;
+        group.add(light);
+
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.2, 0.45, 24),
+            new THREE.MeshBasicMaterial({
+                color: 0x88ffee,
+                transparent: true,
+                opacity: 0.85,
+                side: THREE.DoubleSide,
+                depthWrite: false,
+            })
+        );
+        ring.rotation.x = -Math.PI / 2;
+        group.add(ring);
+
+        const core = new THREE.Mesh(
+            new THREE.SphereGeometry(0.12 * sizeMul, 8, 8),
+            new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false,
+            })
+        );
+        group.add(core);
+
+        this.root.add(group);
+        this.collectFlashes.push({ group, life: 0, maxLife: 0.45 });
     }
 
     private makeBottle(color: number): THREE.Group {

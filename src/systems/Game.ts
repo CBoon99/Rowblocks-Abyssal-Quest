@@ -23,6 +23,7 @@ import {
     buildJasmineDiver,
     type JasmineBuild,
 } from './JasmineCharacter';
+import { getFirstDiveDirector } from './FirstDiveDirector';
 
 // Expose store for LevelSystem win awards and other systems that read window.useGameStore
 (window as any).useGameStore = useGameStore;
@@ -166,7 +167,7 @@ export class Game {
             (window as any).gameHUD?.showObjectiveBanner?.(msg, 4000);
             (window as any).DiscoveryToast?.show?.(msg, {
                 icon: '💨',
-                subtitle: 'Surface for a full Dive Budget refill',
+                subtitle: 'Surface for a full air refill',
                 durationMs: 3500,
             });
         };
@@ -178,7 +179,7 @@ export class Game {
             });
         };
         this.diveBudget.onRefill = () => {
-            (window as any).DiscoveryToast?.show?.('Dive Budget refilled!', {
+            (window as any).DiscoveryToast?.show?.('Air refilled!', {
                 icon: '✅',
                 subtitle: 'Ready for another dive',
                 durationMs: 2200,
@@ -390,6 +391,8 @@ export class Game {
         this.rangerAlerts.clear();
         // Profile may have been selected after Game construct — refresh Jasmine nameplate
         this.swimmerController.refreshDiverIdentity?.();
+        // First 30s calm director (look bias toward turtle / soft HUD)
+        getFirstDiveDirector().reset();
         
         // Start level 1 if no level selected
         const currentLevel = this.levelSystem.getCurrentLevel();
@@ -409,24 +412,13 @@ export class Game {
         // Apply upgrade effects (extra moves, etc.) if LevelSystem exposes an API
         this.applyUpgradeEffectsToLevel();
         
-        // ALWAYS reload blocks to ensure they're created and added to scene
+        // ALWAYS reload blocks — hidden until Puzzle tool (memory stage)
         console.log('📦 Loading blocks for current level...');
         this.blockPuzzleSystem.loadLevelBlocks();
+        this.blockPuzzleSystem.setBlocksVisible?.(false);
         const blockCount = (this.blockPuzzleSystem as any).blocks?.length || 0;
-        console.log(`✅ Game.start() called. Blocks loaded: ${blockCount}`);
-        
-        // Verify all blocks are in scene
-        const blocksInScene = this.scene.children.filter(child => 
-            child instanceof THREE.Mesh && 
-            (this.blockPuzzleSystem as any).blocks?.some((b: any) => b.mesh === child)
-        ).length;
-        console.log(`🔍 Blocks verified in scene: ${blocksInScene} / ${blockCount}`);
-        
-        // Force camera to look at origin (where blocks are)
-        console.log('📷 Setting camera to look at origin (0, 0, 0)...');
-        this.camera.lookAt(0, 0, 0);
-        console.log(`📷 Camera position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
-        console.log(`📷 Camera rotation: (${this.camera.rotation.x.toFixed(2)}, ${this.camera.rotation.y.toFixed(2)}, ${this.camera.rotation.z.toFixed(2)})`);
+        console.log(`✅ Game.start() blocks=${blockCount} (hidden until Puzzle)`);
+        // Do NOT force lookAt origin — third-person Jasmine owns the camera
         
         // Verify renderer is ready
         if (!this.renderer || !this.renderer.domElement) {
@@ -524,6 +516,9 @@ export class Game {
                 );
                 this.processWildlifeEvents();
                 (window as any).gameHUD?.updateGentleness?.(gentleness);
+                getFirstDiveDirector().update(deltaTime, this.swimmerController, () =>
+                    this.swimmerController.getPosition()
+                );
             } catch (e) {
                 console.warn('⚠️ FishSystem update error:', e);
             }
@@ -619,6 +614,10 @@ export class Game {
     
     getUpgradeSystem(): UpgradeSystem {
         return this.upgradeSystem;
+    }
+
+    getAudioManager(): AudioManager {
+        return this.audioManager;
     }
     
     getBlockPuzzleSystem(): BlockPuzzleSystem {
@@ -740,6 +739,40 @@ export class Game {
                     durationMs: 7000,
                 });
                 this.showReefGathers(ev.reefName);
+            } else if (ev.type === 'memory_moment') {
+                // Sparse lines — optional pitch nudge for manta "look up"
+                const soft =
+                    ev.id === 'manta_sky' ||
+                    ev.id === 'turtle_circle' ||
+                    ev.id === 'turtle_come';
+                (window as any).DiscoveryToast?.show?.(ev.line, {
+                    icon: '·',
+                    subtitle: '',
+                    durationMs: soft ? 4200 : 2800,
+                });
+                if (
+                    ev.id === 'turtle_come' ||
+                    ev.id === 'turtle_circle' ||
+                    ev.id === 'turtle_notice'
+                ) {
+                    try {
+                        getFirstDiveDirector().notifyTurtleMoment();
+                    } catch {
+                        /* soft */
+                    }
+                }
+                if (ev.id === 'manta_sky') {
+                    // Gentle camera tip upward so kids look up
+                    try {
+                        const sc = this.swimmerController as any;
+                        if (sc?.pitchObject) {
+                            const p = sc.pitchObject.rotation.x;
+                            sc.pitchObject.rotation.x = Math.min(0.45, p + 0.28);
+                        }
+                    } catch {
+                        /* soft */
+                    }
+                }
             } else if (ev.type === 'birthday_pearl') {
                 (window as any).DiscoveryToast?.show?.(ev.message, {
                     icon: '✨',
@@ -782,15 +815,29 @@ export class Game {
         el.className = 'birthday-pearl';
         el.innerHTML = `
           <div class="birthday-pearl-card">
-            <div class="bp-glow">✨🐢✨</div>
+            <div class="bp-glow" aria-hidden="true">
+              <span class="bp-orb"></span>
+            </div>
+            <div class="bp-tag">SECRET PEARL</div>
             <h2>${message.replace(/</g, '')}</h2>
-            <p>No map pin. No quest. Just trust.</p>
+            <p>An elder turtle trusted you. No map pin. No quest. Just belonging.</p>
+            <p class="bp-whisper">Happy Birthday, Guardian of the Reef.</p>
             <button type="button" id="bp-close">Keep diving</button>
           </div>
         `;
         document.body.appendChild(el);
-        el.querySelector('#bp-close')?.addEventListener('click', () => el.remove());
+        el.querySelector('#bp-close')?.addEventListener('click', () => {
+            el.classList.remove('visible');
+            setTimeout(() => el.remove(), 400);
+        });
         setTimeout(() => el.classList.add('visible'), 50);
+        // Soft bubble burst celebration
+        try {
+            const pos = this.swimmerController?.getPosition?.() ?? this.camera.position;
+            this.bubblesSystem?.emitBubbles?.(pos.clone(), 28);
+        } catch {
+            /* soft */
+        }
     }
 
     private updateDiveAndAlerts(dt: number): void {
@@ -850,7 +897,7 @@ export class Game {
         this.remoteBuddyBuild = buildJasmineDiver({
             suitId: 'buddy',
             displayName: 'Buddy Ranger',
-            showName: true,
+            showName: false,
         });
         this.remoteBuddy = this.remoteBuddyBuild.group;
         this.remoteBuddy.name = 'RemoteBuddy';
@@ -1064,7 +1111,7 @@ export class Game {
                 if (Toast && typeof Toast.show === 'function') {
                     if (discovery?.isNew || isNewType) {
                         Toast.show(discovery?.toastText || `New discovery: ${displayName}!`, {
-                            icon: discovery?.card?.emoji || '🐠',
+                            icon: discovery?.card?.emoji || '✦',
                             subtitle: `${tierLabel} · ${
                                 funFact
                                     ? funFact.slice(0, 90) + (funFact.length > 90 ? '…' : '')
@@ -1072,6 +1119,14 @@ export class Game {
                             }`,
                             durationMs: 4200,
                         });
+                        try {
+                            (window as any).gameHUD?.showDiscoveryCard?.(
+                                displayName,
+                                'Added to Marinepedia!'
+                            );
+                        } catch {
+                            /* soft */
+                        }
                     } else {
                         Toast.show(tierLabel, {
                             icon: observeTier === 'trusting' ? '💙' : '👁️',
@@ -1147,7 +1202,7 @@ export class Game {
      * Fish collect stays on E (collectFish). Soft-fail if ConservationWorld missing.
      * Returns summary so main/Education can award conservation points (CP).
      */
-    tryConservationInteract(range: number = 4): {
+    tryConservationInteract(range: number = 5.8): {
         litter: { collected: number; ids: string[] };
         netFreed: boolean;
     } {

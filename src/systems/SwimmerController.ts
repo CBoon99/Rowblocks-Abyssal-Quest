@@ -16,10 +16,10 @@ import {
     animateJasmine,
     applyJasmineSuit,
     buildJasmineDiver,
-    makeNameSprite,
     suitIdFromStore,
     type JasmineBuild,
 } from './JasmineCharacter';
+import { SPAWN, CAMERA_OFFSET } from './HomeReefStage';
 
 export class SwimmerController {
     private velocity: THREE.Vector3 = new THREE.Vector3();
@@ -48,12 +48,29 @@ export class SwimmerController {
     private animTime = 0;
     private jasmine: JasmineBuild | null = null;
     private lastSkin = '';
-    private camOffset = new THREE.Vector3(0, 1.15, 3.6);
+    /** Chase camera from HomeReefStage bones */
+    private camOffset = new THREE.Vector3(0, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
     private camLookAt = new THREE.Vector3();
-    private camSmooth = new THREE.Vector3(0, 8, 8);
+    private camSmooth = new THREE.Vector3(SPAWN.x, SPAWN.y + 2, SPAWN.z + 5);
+    private bubbleTrailT = 0;
+    /** Smoothed desired velocity (world units / s) for water-drag feel */
+    private desiredVel = new THREE.Vector3();
 
-    private readonly SPEED: number = 5;
-    private readonly SWIM_SPEED: number = 3;
+    /** Horizontal cruise — slightly calmer than arcade thrash */
+    private readonly SPEED: number = 4.2;
+    /** Vertical swim (Space / Shift) */
+    private readonly SWIM_SPEED: number = 2.5;
+    /** Soft cap so thrash + boost cannot pinball */
+    private readonly MAX_SPEED: number = 5.8;
+    /** Seafloor / surface swim bounds (Scene3D shelf ~-2.5, surface ~15) */
+    private readonly MIN_Y: number = -1.2;
+    private readonly MAX_Y: number = 12.5;
+    /** How fast we ease into input (higher = snappier) */
+    private readonly ACCEL: number = 7.5;
+    /** Coast-down when no input (water drag) */
+    private readonly COAST: number = 4.2;
+    /** Kid-friendly clean / free-net reach (metres) */
+    static readonly CONSERVE_RANGE = 5.8;
 
     constructor(
         private camera: THREE.PerspectiveCamera,
@@ -64,21 +81,30 @@ export class SwimmerController {
         const shape = new CANNON.Cylinder(0.3, 0.3, 1.5, 8);
         this.physicsBody = new CANNON.Body({ mass: 1 });
         this.physicsBody.addShape(shape);
-        // Position swimmer above the block grid
-        this.physicsBody.position.set(0, 8, 5);
-        this.physicsBody.linearDamping = 0.8; // Water resistance
-        this.physicsBody.angularDamping = 0.9;
+        // Spawn from HomeReefStage bones
+        this.physicsBody.position.set(SPAWN.x, SPAWN.y, SPAWN.z);
+        // Share drag with our lerp — lower Cannon damping avoids fighting soft accel
+        this.physicsBody.linearDamping = 0.42;
+        this.physicsBody.angularDamping = 0.95;
+        // Soft sleep so we never freeze mid-swim
+        this.physicsBody.allowSleep = false;
         physicsWorld.addBody(this.physicsBody);
 
         // Jasmine Ocean Ranger — visible character (third-person)
         this.spawnJasmine();
 
-        // Initial camera behind her
-        this.camera.position.set(0, 9.2, 8.6);
+        // Initial camera: behind + slightly above
+        this.camera.position.set(
+            SPAWN.x,
+            SPAWN.y + CAMERA_OFFSET.y + 0.3,
+            SPAWN.z + CAMERA_OFFSET.z
+        );
         this.camSmooth.copy(this.camera.position);
+        this.camera.fov = 62;
+        this.camera.updateProjectionMatrix();
 
-        // Flashlight on camera so look aim lights what she sees
-        this.flashlight = new THREE.SpotLight(0xffffff, 2, 50, Math.PI / 6, 0.3);
+        // Very soft fill only — world lights the hero, lamp does not steal face
+        this.flashlight = new THREE.SpotLight(0xd8ecff, 0.45, 22, Math.PI / 5.2, 0.55);
         this.flashlight.position.set(0, 0, 0);
         this.flashlight.target.position.set(0, 0, -10);
         this.camera.add(this.flashlight);
@@ -96,11 +122,14 @@ export class SwimmerController {
         this.jasmine = buildJasmineDiver({
             suitId: 'default',
             displayName: name,
-            showName: true,
+            // Nameplate off for cleaner composition screenshots; HUD has her name
+            showName: false,
         });
-        this.jasmine.group.position.set(0, 8, 5);
+        this.jasmine.group.position.set(SPAWN.x, SPAWN.y, SPAWN.z);
+        // Slight forward dive pitch for readable swimming pose
+        this.jasmine.group.rotation.x = 0.12;
         this.scene.add(this.jasmine.group);
-        console.log(`🧜 Jasmine character ready — Ocean Ranger "${name}"`);
+        console.log(`🧜 Jasmine character ready — Ocean Ranger "${name}" (Pass 2 focal)`);
     }
 
     private resolveDiverName(): string {
@@ -123,20 +152,19 @@ export class SwimmerController {
         return 'Jasmine';
     }
 
-    /** Refresh nameplate after profile select (call when dive starts). */
+    /** Refresh identity after profile select — name lives on HUD, not world label. */
     refreshDiverIdentity(): void {
         if (!this.jasmine) return;
         const name = this.resolveDiverName();
         this.jasmine.group.name = name;
+        // Remove floating nameplate if any (clutters memory moments)
         if (this.jasmine.nameLabel) {
             this.jasmine.group.remove(this.jasmine.nameLabel);
             const mat = this.jasmine.nameLabel.material;
             mat.map?.dispose();
             mat.dispose();
+            this.jasmine.nameLabel = undefined;
         }
-        const spr = makeNameSprite(name);
-        this.jasmine.group.add(spr);
-        this.jasmine.nameLabel = spr;
     }
 
     getJasmineGroup(): THREE.Group | null {
@@ -285,7 +313,7 @@ export class SwimmerController {
         try {
             const game = (window as any).game;
             if (game && typeof game.tryConservationInteract === 'function') {
-                game.tryConservationInteract(4);
+                game.tryConservationInteract(SwimmerController.CONSERVE_RANGE);
             }
         } catch (e) {
             console.warn('tryConservationInteract failed:', e);
@@ -385,27 +413,28 @@ export class SwimmerController {
 
         const speed = this.SPEED * this.swimSpeedMult;
         const swimSpeed = this.SWIM_SPEED * this.swimSpeedMult;
+        const dt = Math.min(0.05, Math.max(0.001, deltaTime));
 
-        // Movement relative to look direction
+        // Desired velocity from look-relative input (target, not instant set)
         this.velocity.set(0, 0, 0);
         this.direction.set(0, 0, -1);
         this.direction.applyQuaternion(lookQuat);
 
         if (this.moveForward) {
-            this.velocity.add(this.direction.clone().multiplyScalar(speed));
+            this.velocity.addScaledVector(this.direction, speed);
         }
         if (this.moveBackward) {
-            this.velocity.add(this.direction.clone().multiplyScalar(-speed));
+            this.velocity.addScaledVector(this.direction, -speed * 0.72);
         }
 
         const right = new THREE.Vector3(1, 0, 0);
         right.applyQuaternion(lookQuat);
 
         if (this.moveLeft) {
-            this.velocity.add(right.clone().multiplyScalar(-speed));
+            this.velocity.addScaledVector(right, -speed * 0.88);
         }
         if (this.moveRight) {
-            this.velocity.add(right.clone().multiplyScalar(speed));
+            this.velocity.addScaledVector(right, speed * 0.88);
         }
 
         if (this.moveUp) {
@@ -415,21 +444,56 @@ export class SwimmerController {
             this.velocity.y -= swimSpeed;
         }
 
-        // Track horizontal thrash for Respect / wildlife mood
-        const planar = Math.hypot(this.velocity.x, this.velocity.z);
-        this.recentSpeed = this.recentSpeed * 0.85 + planar * 0.15;
-        const rawG = 1 - Math.min(1, this.recentSpeed / (this.SPEED * 0.95));
-        this.gentleness = this.gentleness * 0.9 + rawG * 0.1;
+        // Cap target so diagonal + vertical doesn't overdrive
+        const tLen = this.velocity.length();
+        if (tLen > this.MAX_SPEED * this.swimSpeedMult) {
+            this.velocity.multiplyScalar((this.MAX_SPEED * this.swimSpeedMult) / tLen);
+        }
 
-        // Apply velocity to physics body
-        const currentVel = this.physicsBody.velocity;
+        // Ease into water — accel when thrusting, softer coast when releasing
+        const hasInput =
+            this.moveForward ||
+            this.moveBackward ||
+            this.moveLeft ||
+            this.moveRight ||
+            this.moveUp ||
+            this.moveDown;
+        const blend = 1 - Math.exp(-(hasInput ? this.ACCEL : this.COAST) * dt);
+        this.desiredVel.lerp(this.velocity, blend);
+        if (!hasInput) {
+            // Extra drag coast so stop feels like water, not ice
+            this.desiredVel.multiplyScalar(1 - Math.min(0.9, this.COAST * dt * 0.55));
+        }
+
+        // Track thrash for Respect / wildlife mood (from actual motion)
+        const planar = Math.hypot(this.desiredVel.x, this.desiredVel.z);
+        this.recentSpeed = this.recentSpeed * 0.82 + planar * 0.18;
+        const rawG = 1 - Math.min(1, this.recentSpeed / (this.SPEED * 0.92));
+        this.gentleness = this.gentleness * 0.88 + rawG * 0.12;
+
+        // Write smoothed velocity into Cannon (don't hard-snap)
         this.physicsBody.velocity.set(
-            this.velocity.x,
-            currentVel.y + this.velocity.y * deltaTime,
-            this.velocity.z
+            this.desiredVel.x,
+            this.desiredVel.y,
+            this.desiredVel.z
         );
 
+        // Soft floor / surface clamp — bounce gently, no hard wall pop
         const bodyPos = this.physicsBody.position;
+        if (bodyPos.y < this.MIN_Y) {
+            bodyPos.y = this.MIN_Y;
+            if (this.physicsBody.velocity.y < 0) {
+                this.physicsBody.velocity.y *= -0.25;
+                this.desiredVel.y = Math.max(0, this.desiredVel.y * 0.3);
+            }
+        } else if (bodyPos.y > this.MAX_Y) {
+            bodyPos.y = this.MAX_Y;
+            if (this.physicsBody.velocity.y > 0) {
+                this.physicsBody.velocity.y *= -0.2;
+                this.desiredVel.y = Math.min(0, this.desiredVel.y * 0.3);
+            }
+        }
+
         const px = bodyPos.x;
         const py = bodyPos.y;
         const pz = bodyPos.z;
@@ -449,12 +513,38 @@ export class SwimmerController {
             animateJasmine(
                 this.jasmine,
                 this.animTime,
-                moveSpeed * 0.22,
+                moveSpeed * 0.28,
                 this.gentleness
             );
-            // Soft idle float bob
+            // Soft idle float bob + swim pitch (Pass 2 readable pose)
             this.jasmine.group.position.y +=
                 Math.sin(this.animTime * 1.4) * 0.03 * (1 - Math.min(1, moveSpeed * 0.1));
+            const divePitch =
+                this.euler.x * 0.45 +
+                Math.min(0.35, moveSpeed * 0.04) * (this.moveForward ? 1 : 0.3);
+            this.jasmine.group.rotation.x = divePitch;
+
+            // Bubble trail from tank / fins (Pass 2–3)
+            this.bubbleTrailT += deltaTime;
+            const trailRate = 0.08 + Math.min(0.2, moveSpeed * 0.03);
+            if (this.bubbleTrailT >= trailRate) {
+                this.bubbleTrailT = 0;
+                try {
+                    const bubbles = (window as any).game?.getBubblesSystem?.() ??
+                        (window as any).bubblesSystem;
+                    if (bubbles?.emitBubbles) {
+                        const trailPos = new THREE.Vector3(px, py - 0.15, pz);
+                        // Offset slightly behind chest (tank)
+                        const back = new THREE.Vector3(0, 0, 0.35).applyEuler(
+                            new THREE.Euler(0, this.euler.y, 0)
+                        );
+                        trailPos.add(back);
+                        bubbles.emitBubbles(trailPos, moveSpeed > 1.2 ? 2 : 1);
+                    }
+                } catch {
+                    /* soft */
+                }
+            }
         }
 
         // ── Third-person chase camera ────────────────────────────
@@ -464,8 +554,8 @@ export class SwimmerController {
         const desired = new THREE.Vector3(px, py, pz)
             .add(back.multiplyScalar(this.camOffset.z))
             .add(up.multiplyScalar(this.camOffset.y));
-        // Soft follow — feels like swimming cinema
-        this.camSmooth.lerp(desired, 1 - Math.exp(-6 * deltaTime));
+        // Soft follow — slightly laggier = swimming cinema, less motion sickness
+        this.camSmooth.lerp(desired, 1 - Math.exp(-5.2 * dt));
         this.camera.position.copy(this.camSmooth);
 
         // Look toward a point slightly ahead of Jasmine's head
@@ -504,13 +594,20 @@ export class SwimmerController {
         return this.recentSpeed;
     }
 
-    /** Soft outward push (shark respect zone) */
+    /** Soft outward push (shark respect zone) — never a hard knock-back */
     applySoftPush(dir: THREE.Vector3, strength: number): void {
-        const d = dir.clone().normalize().multiplyScalar(strength);
+        const s = Math.min(2.4, Math.max(0, strength)) * 0.55;
+        const d = dir.clone();
+        d.y = 0;
+        if (d.lengthSq() < 1e-6) return;
+        d.normalize().multiplyScalar(s);
         this.physicsBody.velocity.x += d.x;
         this.physicsBody.velocity.z += d.z;
-        this.physicsBody.position.x += d.x * 0.02;
-        this.physicsBody.position.z += d.z * 0.02;
+        this.desiredVel.x += d.x * 0.65;
+        this.desiredVel.z += d.z * 0.65;
+        // Tiny position nudge so camera doesn't stay inside respect bubble
+        this.physicsBody.position.x += d.x * 0.014;
+        this.physicsBody.position.z += d.z * 0.014;
     }
     
     getDirection(): THREE.Vector3 {

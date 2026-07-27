@@ -287,6 +287,29 @@
     "depthMax": 40,
     "size": "About 5 cm",
     "diet": "Parasites and leftover food bits on fish",
+    "modelType": "cleaner_shrimp"
+  },
+  {
+    "id": "butterfly_fish",
+    "type": "butterfly_fish",
+    "name": "Butterflyfish",
+    "commonName": "Butterflyfish",
+    "scientificName": "Chaetodon",
+    "emoji": "🐠",
+    "icon": "🐠",
+    "rarity": "common",
+    "description": "Bright, disc-shaped reef fish that pairs often swim together.",
+    "funFact": "Many butterflyfish mate for life and sleep tucked into the coral at night!",
+    "habitat": "Coral reefs",
+    "ecologyRole": "Nips coral polyps and tiny invertebrates — part of the reef's busy cleaning crew.",
+    "threats": "Coral bleaching and aquarium collection.",
+    "conservationTip": "Healthy coral means healthy butterflyfish — protect the reef and they thrive.",
+    "minDepth": 1,
+    "maxDepth": 30,
+    "depthMin": 1,
+    "depthMax": 30,
+    "size": "12–20 cm",
+    "diet": "Coral polyps, small invertebrates",
     "modelType": "clownfish"
   }
 ]

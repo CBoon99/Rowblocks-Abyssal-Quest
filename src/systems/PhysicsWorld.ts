@@ -5,13 +5,14 @@ export class PhysicsWorld {
     
     constructor() {
         this.world = new CANNON.World();
-        this.world.gravity.set(0, -9.82, 0); // Gravity (will be modified for underwater)
         this.world.broadphase = new CANNON.NaiveBroadphase();
         // World.solver is typed as base Solver; default is GSSolver which has iterations
-        (this.world.solver as CANNON.GSSolver).iterations = 10;
-        
-        // Underwater physics: reduce gravity effect, add buoyancy
-        this.world.gravity.set(0, -2, 0); // Reduced gravity for underwater feel
+        (this.world.solver as CANNON.GSSolver).iterations = 8;
+
+        // Near-neutral buoyancy — soft sink when idle, not a hard pull down
+        this.world.gravity.set(0, -0.55, 0);
+        // Slightly allow bodies to rest without jitter on soft contacts
+        this.world.allowSleep = true;
     }
     
     update(deltaTime: number): void {

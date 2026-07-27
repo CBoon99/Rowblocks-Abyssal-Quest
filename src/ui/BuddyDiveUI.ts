@@ -18,7 +18,7 @@ export class BuddyDiveUI {
           <h2>Buddy Dive</h2>
           <button type="button" class="buddy-close" id="buddy-close">✕</button>
         </div>
-        <p class="buddy-copy">Ocean Rangers dive together — same team only. Share a code with a friend (same browser tabs work now; full online rooms next).</p>
+        <p class="buddy-copy"><strong>Local test only.</strong> Same computer / browser tabs — not online multiplayer. Share a 4-digit code between two tabs. Full online rooms are a future update.</p>
         <div class="buddy-row">
           <label>Your ranger name</label>
           <input id="buddy-name" type="text" maxlength="16" placeholder="Jasmine" />

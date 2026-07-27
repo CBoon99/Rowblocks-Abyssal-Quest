@@ -24,6 +24,12 @@ import {
     type SpeciesPersonality,
 } from './SpeciesPersonality';
 import { getReefHealthSystem } from './ReefHealthSystem';
+import {
+    MEMORY_HEROES,
+    PATH_RIBBON,
+    MANTA_TRIGGER_Z,
+    TURTLE_NOTICE_DIST,
+} from './HomeReefStage';
 
 /** Trust language for kids — never "annoyance meters" */
 export type FishMood = TrustState;
@@ -37,7 +43,8 @@ export type WildlifeEvent =
     | { type: 'trust_toast'; line: string; icon: string }
     | { type: 'birthday_pearl'; message: string }
     | { type: 'remembers_you'; line: string; icon: string }
-    | { type: 'reef_gathers'; reefName: string };
+    | { type: 'reef_gathers'; reefName: string }
+    | { type: 'memory_moment'; id: string; line: string };
 
 export interface Fish {
     mesh: THREE.Mesh;
@@ -71,6 +78,12 @@ export interface Fish {
     wasFarAfterMeet?: boolean;
     /** Soft gather-orbit angle when reef accepts you */
     gatherAngle?: number;
+    /** Memory Pass: staged emotional hero */
+    memoryRole?: 'friend_turtle' | 'sky_manta' | 'respect_shark' | 'lantern_jelly';
+    memoryPhase?: string;
+    memoryTimer?: number;
+    memoryDone?: boolean;
+    baseScale?: number;
 }
 
 const SPECIES_SPAWN: { id: string; weight: number }[] = [
@@ -104,6 +117,8 @@ export class FishSystem {
     /** Reefs that already fired the emotional gather climax this dive */
     private gatherFired = new Set<string>();
     private gatherActive: { reefId: string; until: number } | null = null;
+    /** Soft disc shadow under sky manta during glide */
+    private mantaShadow: THREE.Mesh | null = null;
 
     constructor(scene: THREE.Scene, physicsWorld: PhysicsWorld) {
         this.scene = scene;
@@ -167,6 +182,8 @@ export class FishSystem {
             }
             // Birthday secret: elderly sea turtle (max trust → pearl)
             this.spawnElderTurtle();
+            // Pass 1: composition heroes at Home Reef (mock plate silhouettes)
+            this.spawnCompositionHeroes();
             console.log(
                 `✅ Spawned ${this.fishes.length} (hero_glb=${glb}) quality=${count}`,
                 counts
@@ -182,18 +199,312 @@ export class FishSystem {
         fish.isElder = true;
         fish.speciesId = 'seaturtle';
         fish.type = 'seaturtle';
-        fish.trust = 0.15;
-        fish.mood = 'wary';
-        // Quiet corner of home reef
-        fish.position.set(6, 1.5, -4);
-        fish.homeReefX = 0;
-        fish.homeReefZ = 0;
-        fish.group.scale.multiplyScalar(1.25);
+        // Warm start — she has lived a long time and is almost ready
+        fish.trust = 0.42;
+        fish.mood = 'calm';
+        // Quiet right-side pocket off golden path (findable after friend turtle)
+        fish.position.set(7.2, 2.1, 16.5);
+        fish.homeReefX = 7;
+        fish.homeReefZ = 16;
+        fish.group.scale.multiplyScalar(1.35);
         fish.group.position.copy(fish.position);
         fish.group.userData.isElder = true;
+        try {
+            const glow = new THREE.PointLight(0xffe8a0, 0.35, 5);
+            glow.position.set(0, 0.3, 0);
+            fish.group.add(glow);
+        } catch {
+            /* soft */
+        }
         this.fishes.push(fish);
         this.scene.add(fish.group);
-        console.log('🐢 Elder turtle placed (birthday secret — max trust)');
+        console.log('Elder turtle placed (birthday secret — gentle trust → pearl)');
+    }
+
+    /**
+     * MEMORY IMPLEMENTATION PASS 1 — staged emotional heroes only.
+     * One friend turtle · one sky manta · one respect shark · two lantern jellies.
+     * Plus a thin ribbon of school fish on the path (not a carpet).
+     */
+    private spawnCompositionHeroes(): void {
+        const place = (
+            id: string,
+            x: number,
+            y: number,
+            z: number,
+            scale: number,
+            trust: number,
+            role?: Fish['memoryRole']
+        ): Fish => {
+            const fish = this.createFish(id);
+            fish.position.set(x, y, z);
+            fish.homeReefX = x;
+            fish.homeReefZ = z;
+            fish.trust = trust;
+            fish.peakTrust = trust;
+            fish.mood = trustToState(trust, false, false);
+            fish.baseScale = scale;
+            fish.group.scale.setScalar(scale);
+            fish.group.position.copy(fish.position);
+            fish.velocity.set(0.05, 0, 0.05);
+            if (role) {
+                fish.memoryRole = role;
+                fish.memoryPhase = 'wait';
+                fish.memoryTimer = 0;
+                fish.memoryDone = false;
+            }
+            this.fishes.push(fish);
+            this.scene.add(fish.group);
+            return fish;
+        };
+
+        // Stage marks from HomeReefStage bones (single source of truth)
+        const heroes = [
+            MEMORY_HEROES.friendTurtle,
+            MEMORY_HEROES.skyManta,
+            MEMORY_HEROES.respectShark,
+            MEMORY_HEROES.lanternJellyA,
+            MEMORY_HEROES.lanternJellyB,
+        ];
+        for (const h of heroes) {
+            place(h.speciesId, h.x, h.y, h.z, h.scale, h.trust, h.role);
+        }
+        for (const r of PATH_RIBBON) {
+            place(r.speciesId, r.x, r.y, r.z, r.scale, 0.4);
+        }
+        console.log('🎬 MEMORY heroes from HomeReefStage bones');
+    }
+
+    private ensureMantaShadow(): void {
+        if (this.mantaShadow) return;
+        const geo = new THREE.CircleGeometry(3.2, 24);
+        const mat = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: 0.35,
+            depthWrite: false,
+        });
+        const m = new THREE.Mesh(geo, mat);
+        m.rotation.x = -Math.PI / 2;
+        m.visible = false;
+        m.name = 'MantaShadow';
+        this.scene.add(m);
+        this.mantaShadow = m;
+    }
+
+    /**
+     * Film-style moment director — runs every frame for memory heroes only.
+     * Obvious. Slow. Once.
+     */
+    private updateMemoryMoments(
+        deltaTime: number,
+        cameraPosition: THREE.Vector3,
+        gentleness: number
+    ): void {
+        const calm = gentleness > 0.55;
+        for (const fish of this.fishes) {
+            if (!fish.memoryRole || fish.memoryDone) continue;
+            fish.memoryTimer = (fish.memoryTimer || 0) + deltaTime;
+            const dist = fish.position.distanceTo(cameraPosition);
+            const phase = fish.memoryPhase || 'wait';
+
+            // ── FRIEND TURTLE: notices → approaches → circles → leaves ──
+            if (fish.memoryRole === 'friend_turtle') {
+                if (phase === 'wait') {
+                    // Idle gentle drift
+                    fish.velocity.set(
+                        Math.sin(this.time * 0.3) * 0.15,
+                        0,
+                        Math.cos(this.time * 0.25) * 0.12
+                    );
+                    // Notice when Jasmine is near and calm (obvious beat)
+                    // Quicker notice — first 30s should not hunt forever
+                    if (dist < TURTLE_NOTICE_DIST && calm && fish.memoryTimer > 0.8) {
+                        fish.memoryPhase = 'notice';
+                        fish.memoryTimer = 0;
+                        this.events.push({
+                            type: 'memory_moment',
+                            id: 'turtle_notice',
+                            line: 'She sees you…',
+                        });
+                    }
+                } else if (phase === 'notice') {
+                    // Face Jasmine, almost still
+                    const toward = cameraPosition.clone().sub(fish.position);
+                    toward.y = 0;
+                    if (toward.lengthSq() > 0.01) {
+                        fish.velocity.copy(toward.normalize().multiplyScalar(0.08));
+                    }
+                    if (fish.memoryTimer > 1.6) {
+                        fish.memoryPhase = 'approach';
+                        fish.memoryTimer = 0;
+                        this.events.push({
+                            type: 'memory_moment',
+                            id: 'turtle_come',
+                            line: 'The turtle is coming to see you.',
+                        });
+                    }
+                } else if (phase === 'approach') {
+                    const toward = cameraPosition.clone().sub(fish.position);
+                    toward.y *= 0.3;
+                    if (toward.length() > 3.2) {
+                        fish.velocity.copy(toward.normalize().multiplyScalar(0.85));
+                    } else {
+                        fish.memoryPhase = 'circle';
+                        fish.memoryTimer = 0;
+                        fish.gatherAngle = Math.atan2(
+                            fish.position.z - cameraPosition.z,
+                            fish.position.x - cameraPosition.x
+                        );
+                        this.events.push({
+                            type: 'memory_moment',
+                            id: 'turtle_circle',
+                            line: 'She came to see you.',
+                        });
+                    }
+                } else if (phase === 'circle') {
+                    fish.gatherAngle = (fish.gatherAngle || 0) + deltaTime * 0.45;
+                    const r = 3.4;
+                    const tx =
+                        cameraPosition.x + Math.cos(fish.gatherAngle) * r;
+                    const tz =
+                        cameraPosition.z + Math.sin(fish.gatherAngle) * r;
+                    const ty = cameraPosition.y + 0.1;
+                    const to = new THREE.Vector3(
+                        tx - fish.position.x,
+                        ty - fish.position.y,
+                        tz - fish.position.z
+                    );
+                    if (to.lengthSq() > 0.01) {
+                        fish.velocity.copy(to.normalize().multiplyScalar(0.9));
+                    }
+                    if (fish.memoryTimer > 9) {
+                        fish.memoryPhase = 'leave';
+                        fish.memoryTimer = 0;
+                    }
+                } else if (phase === 'leave') {
+                    // Continue journey — she remains “your” turtle in memory
+                    fish.velocity.set(-0.9, 0.05, 0.55);
+                    if (fish.memoryTimer > 6) {
+                        fish.memoryDone = true;
+                        fish.memoryPhase = 'done';
+                        fish.trust = Math.min(1, fish.trust + 0.25);
+                    }
+                }
+                // Override generic mood motion for staged turtle
+                continue;
+            }
+
+            // ── SKY MANTA: one silent overhead glide (wings over Jasmine) ──
+            if (fish.memoryRole === 'sky_manta') {
+                if (phase === 'wait') {
+                    // Hold left-high of corridor — visible if she looks up early
+                    fish.position.set(-7, 5.6, 6.5);
+                    fish.velocity.set(0, 0, 0);
+                    if (cameraPosition.z > MANTA_TRIGGER_Z && cameraPosition.y < 5.5) {
+                        fish.memoryPhase = 'glide';
+                        fish.memoryTimer = 0;
+                        // Start just left of player so pass is overhead
+                        fish.position.set(
+                            cameraPosition.x - 6,
+                            cameraPosition.y + 3.2,
+                            cameraPosition.z + 1.5
+                        );
+                        this.ensureMantaShadow();
+                        this.events.push({
+                            type: 'memory_moment',
+                            id: 'manta_sky',
+                            line: 'Look up…',
+                        });
+                    }
+                } else if (phase === 'glide') {
+                    // Slow cross directly over path — dominate sky
+                    fish.velocity.set(1.1, 0.01, 0.25);
+                    if (fish.position.y < cameraPosition.y + 2.4) {
+                        fish.velocity.y = 0.15;
+                    }
+                    // Shadow on sand under wings
+                    if (this.mantaShadow) {
+                        this.mantaShadow.visible = true;
+                        this.mantaShadow.position.set(
+                            fish.position.x,
+                            -2.2,
+                            fish.position.z
+                        );
+                        const pulse = 0.35 + Math.sin(this.time * 2) * 0.05;
+                        (this.mantaShadow.material as THREE.MeshBasicMaterial).opacity =
+                            pulse;
+                    }
+                    if (fish.position.x > cameraPosition.x + 10 || fish.memoryTimer > 16) {
+                        fish.memoryDone = true;
+                        fish.memoryPhase = 'done';
+                        fish.velocity.set(0.35, 0, 0.15);
+                        if (this.mantaShadow) this.mantaShadow.visible = false;
+                    }
+                }
+                continue;
+            }
+
+            // ── RESPECT SHARK: slow side-on patrol — profile majesty ───
+            if (fish.memoryRole === 'respect_shark') {
+                const ang = this.time * 0.09;
+                // Orbit keeps body roughly side-on to path centre
+                const cx = 10;
+                const cz = 13;
+                const tx = cx + Math.cos(ang) * 4.5;
+                const tz = cz + Math.sin(ang) * 2.2;
+                const to = new THREE.Vector3(
+                    tx - fish.position.x,
+                    3.1 - fish.position.y,
+                    tz - fish.position.z
+                );
+                if (to.lengthSq() > 0.01) {
+                    fish.velocity.copy(to.normalize().multiplyScalar(0.42));
+                }
+                // Soft respect only if too close — calm ancient, not a shove
+                if (dist < 5.2 && dist > 0.4) {
+                    const away = cameraPosition.clone().sub(fish.position).normalize();
+                    this.events.push({
+                        type: 'shark_respect',
+                        strength: (1 - dist / 5.2) * 1.9,
+                        dir: away,
+                        line: 'Too close. Give her space.',
+                    });
+                }
+                continue;
+            }
+
+            // ── LANTERN JELLY: glow pulse, slow drift ────────────────
+            if (fish.memoryRole === 'lantern_jelly') {
+                fish.velocity.set(
+                    Math.sin(this.time * 0.4 + fish.swimPhase) * 0.12,
+                    Math.sin(this.time * 0.7) * 0.08,
+                    Math.cos(this.time * 0.35) * 0.1
+                );
+                // Strong emissive pulse so children want to approach
+                fish.group.traverse((obj) => {
+                    if (
+                        obj instanceof THREE.Mesh &&
+                        obj.material instanceof THREE.MeshStandardMaterial
+                    ) {
+                        obj.material.emissive = new THREE.Color(0x88e0ff);
+                        obj.material.emissiveIntensity =
+                            0.45 + Math.sin(this.time * 2.2 + fish.swimPhase) * 0.25;
+                    }
+                });
+                if (dist < 6 && !fish.memoryDone && fish.memoryTimer > 3) {
+                    // One soft “beauty first” cue
+                    if (fish.memoryPhase === 'wait') {
+                        fish.memoryPhase = 'seen';
+                        this.events.push({
+                            type: 'memory_moment',
+                            id: 'jelly_lantern',
+                            line: 'Living lights…',
+                        });
+                    }
+                }
+            }
+        }
     }
 
     private pickSpecies(): string {
@@ -294,6 +605,9 @@ export class FishSystem {
 
         let thrashNearAny = false;
 
+        // MEMORY PASS: stage emotional heroes before generic boids
+        this.updateMemoryMoments(deltaTime, cameraPosition, g);
+
         for (const fish of this.fishes) {
             fish.swimPhase += deltaTime * fish.swimSpeed * 2.2;
             fish.moodTimer = Math.max(0, fish.moodTimer - deltaTime);
@@ -311,6 +625,62 @@ export class FishSystem {
             const { reef } = nearestReef(fish.position.x, fish.position.z);
             const reefH = getReefHealthSystem().getHealth(reef.id) / 100;
 
+            // Staged memory heroes: velocity already set — skip thrash/school AI
+            const memoryActive =
+                !!fish.memoryRole &&
+                !fish.memoryDone &&
+                fish.memoryPhase !== 'done';
+            if (memoryActive) {
+                // Soft thrash still scares friend turtle mid-approach
+                if (
+                    fish.memoryRole === 'friend_turtle' &&
+                    thrashing &&
+                    dist < 5 &&
+                    (fish.memoryPhase === 'approach' || fish.memoryPhase === 'circle')
+                ) {
+                    fish.memoryPhase = 'leave';
+                    fish.memoryTimer = 0;
+                    fish.velocity.set(-1.5, 0.2, 0.8);
+                    this.events.push({
+                        type: 'memory_moment',
+                        id: 'turtle_scared',
+                        line: 'You scared it — sit still…',
+                    });
+                }
+                // Integrate position only (below shared block)
+                const maxSpeed =
+                    fish.swimSpeed *
+                    (fish.memoryRole === 'sky_manta' ? 1.2 : 1.6);
+                if (fish.velocity.length() > maxSpeed) {
+                    fish.velocity.normalize().multiplyScalar(maxSpeed);
+                }
+                fish.position.add(fish.velocity.clone().multiplyScalar(deltaTime));
+                if (fish.position.y < -5) fish.position.y = -5;
+                if (fish.position.y > 12) fish.position.y = 12;
+                fish.group.position.copy(fish.position);
+                if (fish.velocity.lengthSq() > 0.01) {
+                    const target = fish.position
+                        .clone()
+                        .add(fish.velocity.clone().normalize());
+                    fish.group.lookAt(target);
+                    fish.group.rotateY(Math.PI);
+                }
+                // Face Jasmine during turtle notice/approach
+                if (
+                    fish.memoryRole === 'friend_turtle' &&
+                    (fish.memoryPhase === 'notice' ||
+                        fish.memoryPhase === 'approach' ||
+                        fish.memoryPhase === 'circle')
+                ) {
+                    fish.group.lookAt(cameraPosition);
+                    fish.group.rotateY(Math.PI);
+                }
+                const bs = fish.baseScale || 1;
+                fish.group.scale.setScalar(bs);
+                animateCreature(fish.build, fish.swimPhase, deltaTime);
+                continue;
+            }
+
             // ── Trust memory (this dive only) ─────────────────────────
             if (dist < 8) {
                 if (thrashing) {
@@ -325,6 +695,8 @@ export class FishSystem {
                         if (nearAnemone && g > 0.55) gain *= 1.4;
                         else gain *= 0.5;
                     }
+                    // Elder birthday turtle: patient calm pays faster (gift reachable)
+                    if (fish.isElder && g > 0.7 && dist < 6) gain *= 1.55;
                     fish.trust = Math.min(1, fish.trust + gain);
                 }
             }
@@ -386,7 +758,7 @@ export class FishSystem {
                 const away = cameraPosition.clone().sub(fish.position).normalize();
                 this.events.push({
                     type: 'shark_respect',
-                    strength: (1 - dist / p.respectRadius) * 5,
+                    strength: (1 - dist / p.respectRadius) * 2.6,
                     dir: away,
                     line: p.kidLine.respect || 'Too close. Back up.',
                 });
@@ -447,13 +819,13 @@ export class FishSystem {
                 fish.watchTimer = 0;
             }
 
-            // Elder turtle birthday pearl
+            // Elder turtle birthday pearl — patient calm + high trust (reachable gift)
             if (
                 fish.isElder &&
                 !fish.pearlDropped &&
-                fish.trust >= 0.92 &&
-                dist < 4 &&
-                g > 0.7
+                fish.trust >= 0.82 &&
+                dist < 5.2 &&
+                g > 0.62
             ) {
                 fish.pearlDropped = true;
                 this.events.push({
@@ -512,9 +884,10 @@ export class FishSystem {
                 dist < 6 &&
                 g > 0.55;
 
-            if (fish.mood === 'scared' && dist < 11) {
+            if (fish.mood === 'scared' && dist < 12) {
+                // Pass 5: scatter is obvious
                 const away = fish.position.clone().sub(cameraPosition).normalize();
-                fish.velocity.add(away.multiplyScalar(2.5));
+                fish.velocity.add(away.multiplyScalar(3.2));
             } else if (watching) {
                 // Curiosity magic: slow circle + face Jasmine
                 fish.gatherAngle = (fish.gatherAngle ?? 0) + deltaTime * 0.35;
@@ -666,10 +1039,32 @@ export class FishSystem {
                 fish.group.rotation.z *= 0.9;
             }
 
-            // Soft visual: curious/trusting animals pulse slightly
-            if (fish.mood === 'curious' || fish.mood === 'trusting') {
-                const s = 1 + Math.sin(this.time * 3.5) * 0.025;
-                fish.group.scale.setScalar(s);
+            // Pass 5: mood readable without meters
+            const baseScale = fish.baseScale || (fish.isElder ? 1.25 : 1);
+            if (fish.mood === 'scared') {
+                fish.group.scale.setScalar(
+                    baseScale * (0.97 + Math.sin(this.time * 12) * 0.02)
+                );
+            } else if (fish.mood === 'curious' || fish.mood === 'trusting') {
+                fish.group.scale.setScalar(
+                    baseScale * (1 + Math.sin(this.time * 3.5) * 0.035)
+                );
+            } else if (p.role === 'jelly' && dist < 5) {
+                fish.group.scale.setScalar(
+                    baseScale * (1 + Math.sin(this.time * 4) * 0.06)
+                );
+                fish.group.traverse((obj) => {
+                    if (
+                        obj instanceof THREE.Mesh &&
+                        obj.material instanceof THREE.MeshStandardMaterial &&
+                        obj.material.emissive
+                    ) {
+                        obj.material.emissiveIntensity =
+                            0.25 + Math.sin(this.time * 3) * 0.15;
+                    }
+                });
+            } else {
+                fish.group.scale.setScalar(baseScale);
             }
 
             animateCreature(fish.build, fish.swimPhase, deltaTime);

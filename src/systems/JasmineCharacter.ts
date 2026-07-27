@@ -564,32 +564,34 @@ export function animateJasmine(
     speed: number,
     gentleness: number
 ): void {
-    const kick = 0.15 + Math.min(1.4, speed) * 0.85;
-    const phase = time * (4 + kick * 3);
+    const kick = 0.2 + Math.min(1.5, speed) * 0.95;
+    const phase = time * (4.5 + kick * 3.2);
 
-    build.finL.rotation.x = Math.sin(phase) * 0.55 * kick;
-    build.finR.rotation.x = Math.sin(phase + Math.PI) * 0.55 * kick;
+    // Stronger fin kick — readable from behind (Pass 2)
+    build.finL.rotation.x = Math.sin(phase) * 0.7 * kick;
+    build.finR.rotation.x = Math.sin(phase + Math.PI) * 0.7 * kick;
+    build.finL.rotation.z = -0.08 + Math.sin(phase * 0.5) * 0.06;
+    build.finR.rotation.z = 0.08 - Math.sin(phase * 0.5) * 0.06;
 
-    const armA = Math.sin(phase * 0.85) * 0.4 * kick;
-    build.armL.rotation.x = armA;
-    build.armR.rotation.x = -armA * 0.9;
-    build.armL.rotation.z = -0.12 + Math.sin(phase * 0.5) * 0.08;
-    build.armR.rotation.z = 0.12 - Math.sin(phase * 0.5) * 0.08;
+    const armA = Math.sin(phase * 0.85) * 0.45 * kick;
+    build.armL.rotation.x = armA + 0.25; // forward swim arms
+    build.armR.rotation.x = -armA * 0.9 + 0.25;
+    build.armL.rotation.z = -0.18 + Math.sin(phase * 0.5) * 0.1;
+    build.armR.rotation.z = 0.18 - Math.sin(phase * 0.5) * 0.1;
 
     // Hair sway
-    build.ponytail.rotation.x = 0.1 + Math.sin(time * 2.2) * 0.1 + kick * 0.1;
-    build.ponytail.rotation.z = Math.sin(time * 1.7) * 0.08;
+    build.ponytail.rotation.x = 0.15 + Math.sin(time * 2.2) * 0.12 + kick * 0.12;
+    build.ponytail.rotation.z = Math.sin(time * 1.7) * 0.1;
 
-    build.head.rotation.x = Math.sin(time * 1.1) * 0.03;
-    build.head.rotation.y = Math.sin(time * 0.7) * 0.04 * (1 - gentleness * 0.3);
+    // Head tracks slightly with gentleness (still mostly back view)
+    build.head.rotation.x = Math.sin(time * 1.1) * 0.04;
+    build.head.rotation.y = Math.sin(time * 0.7) * 0.05 * (1 - gentleness * 0.25);
 
     build.tank.rotation.x = Math.sin(time * 1.5) * 0.02;
 
-    // Flower bob
     if (build.flower) {
         build.flower.rotation.z = Math.sin(time * 2.5) * 0.12;
     }
-    // Candy little wiggle when swimming
     if (build.candy) {
         build.candy.rotation.z = Math.sin(time * 3) * 0.05 * kick;
     }

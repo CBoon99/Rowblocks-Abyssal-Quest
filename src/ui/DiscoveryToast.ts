@@ -35,11 +35,25 @@ export class DiscoveryToast {
     static show(text: string, opts?: DiscoveryToastOptions): void {
         const entry: QueuedToast = {
             text: text || 'New discovery!',
-            icon: opts?.icon ?? '✨',
+            icon: opts?.icon ?? '✦',
             subtitle: opts?.subtitle,
             durationMs: opts?.durationMs ?? DEFAULT_DURATION_MS,
         };
         DiscoveryToast.queue.push(entry);
+        // Mock plate discovery card for Marinepedia-style unlocks
+        try {
+            const hud = (window as any).gameHUD;
+            if (
+                hud?.showDiscoveryCard &&
+                /marinepedia|discovery|observed|added/i.test(
+                    `${text} ${opts?.subtitle || ''}`
+                )
+            ) {
+                hud.showDiscoveryCard(text.replace(/^New discovery:\s*/i, ''), opts?.subtitle);
+            }
+        } catch {
+            /* soft */
+        }
         if (!DiscoveryToast.showing) {
             DiscoveryToast.pump();
         }

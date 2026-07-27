@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Game } from './systems/Game';
-import { UIManager } from './ui/UIManager';
 import { GameHUD } from './ui/GameHUD';
 import { LevelSelectUI } from './ui/LevelSelectUI';
 import { UpgradeShopUI } from './ui/UpgradeShopUI';
@@ -23,6 +22,12 @@ import { MobileControls, shouldUseMobileControls } from './ui/MobileControls';
 import { isTouchPrimary, getQualityConfig } from './systems/QualitySettings';
 import { OceanMapUI } from './ui/OceanMapUI';
 import { BuddyDiveUI } from './ui/BuddyDiveUI';
+import {
+    FIRST_DIVE_OBJECTIVE,
+    FIRST_DIVE_OBJECTIVE_TITLE,
+} from './systems/HomeReefStage';
+import { GIFT_HOME_LEVEL_ID } from './systems/GiftMode';
+import { getFirstDiveDirector } from './systems/FirstDiveDirector';
 
 // Initialize game when DOM is ready
 const initGame = async () => {
@@ -68,8 +73,6 @@ const initGame = async () => {
         };
 
         // ── 3. UI systems ────────────────────────────────────────────────
-        const uiManager = new UIManager(game);
-
         const gameHUD = new GameHUD(
             document.getElementById('game-hud-container')!,
             game.getLevelSystem(),
@@ -89,7 +92,7 @@ const initGame = async () => {
             addLookDelta: (dx, dy) => swimmer?.addLookDelta?.(dx, dy),
             triggerCollect: () => swimmer?.triggerCollect?.() ?? game.collectFish?.(),
             triggerConserve: () =>
-                swimmer?.triggerConserve?.() ?? game.tryConservationInteract?.(4),
+                swimmer?.triggerConserve?.() ?? game.tryConservationInteract?.(5.8),
             slidePuzzle: (dir) => {
                 const blocks = game.getBlockPuzzleSystem();
                 return blocks?.slideSelected?.(dir) ?? false;
@@ -157,12 +160,16 @@ const initGame = async () => {
             gameHUD.show();
             oceanMap.show();
 
-            // Kid objective banner from level description
-            const level = levelSystem.getCurrentLevel();
-            const desc =
-                level?.description ||
-                'Open the path on Home Reef — then swim the deep blue to find more reefs (tap Map)!';
-            gameHUD.showObjectiveBanner?.(desc, 8000);
+            // Home Reef bones: explore first, puzzle later
+            (window as any).__diveCleans = 0;
+            (window as any).__diveCleanTarget = 8;
+            gameHUD.showObjectiveBanner?.(FIRST_DIVE_OBJECTIVE, 7000);
+            const titleEl = document.getElementById('aq-obj-title');
+            const bodyEl = document.getElementById('aq-obj-body');
+            if (titleEl) titleEl.textContent = FIRST_DIVE_OBJECTIVE_TITLE;
+            if (bodyEl) bodyEl.textContent = FIRST_DIVE_OBJECTIVE;
+            gameHUD.updateCleanProgress?.(0, 8);
+            game.getBlockPuzzleSystem?.()?.setBlocksVisible?.(false);
 
             // iPad controls — coach only until dismissed (localStorage)
             if (useMobile) {
@@ -204,10 +211,13 @@ const initGame = async () => {
         const marinepediaUI = new MarinepediaUI(
             document.getElementById('marinepedia-container')!
         );
+        (window as any).marinepediaUI = marinepediaUI;
 
         const customizationShopUI = new CustomizationShop(
             document.getElementById('customization-shop-container')!
         );
+        (window as any).customizationShopUI = customizationShopUI;
+        (window as any).upgradeShopUI = upgradeShopUI;
 
         // Profile select container (created in index-3d.html)
         let profileContainer = document.getElementById('profile-select-container');
@@ -287,28 +297,58 @@ const initGame = async () => {
         const consWorld = game.getConservationWorld?.();
         if (consWorld) {
             const prevCollect = consWorld.onCollect;
-            consWorld.onCollect = (e: { ids?: string[] }) => {
+            consWorld.onCollect = (e: {
+                kind: 'litter';
+                ids: string[];
+                position: import('three').Vector3;
+            }) => {
                 prevCollect?.(e);
                 const n = e.ids?.length ?? 1;
+                // Memory language: pride, not inventory
+                // Dive clean counter for HUD quest card
+                const w = window as any;
+                w.__diveCleans = (w.__diveCleans || 0) + n;
+                w.__diveCleanTarget = w.__diveCleanTarget || 8;
                 DiscoveryToast.show(
-                    n > 1 ? `Collected ${n} pieces of litter!` : 'Litter secured!',
+                    n > 1 ? 'The path is clearer!' : 'Trash gone — fish can breathe easier.',
                     {
-                        icon: '🗑️',
-                        subtitle: 'Plastic can float for hundreds of years — rangers clean as they explore.',
-                        durationMs: 3500,
+                        icon: '·',
+                        subtitle: 'The reef is a little happier because of you.',
+                        durationMs: 3800,
                     }
                 );
+                (window as any).gameHUD?.updateCleanProgress?.(
+                    w.__diveCleans,
+                    w.__diveCleanTarget
+                );
+                try {
+                    getFirstDiveDirector().notifyClean(w.__diveCleans);
+                } catch {
+                    /* soft */
+                }
                 refreshRangerUI();
                 doAutoSave();
             };
             const prevFree = consWorld.onFree;
             consWorld.onFree = (e: unknown) => {
                 prevFree?.(e as any);
-                DiscoveryToast.show('Ghost net freed!', {
-                    icon: '🕸️',
-                    subtitle: 'Lost nets keep fishing forever — you just saved ocean friends.',
-                    durationMs: 4000,
+                const w = window as any;
+                w.__diveCleans = (w.__diveCleans || 0) + 2;
+                w.__diveCleanTarget = w.__diveCleanTarget || 8;
+                DiscoveryToast.show('You freed them!', {
+                    icon: '·',
+                    subtitle: 'The net can’t hurt anyone anymore. The ocean thanks you.',
+                    durationMs: 4200,
                 });
+                (window as any).gameHUD?.updateCleanProgress?.(
+                    w.__diveCleans,
+                    w.__diveCleanTarget
+                );
+                try {
+                    getFirstDiveDirector().notifyNetFreed();
+                } catch {
+                    /* soft */
+                }
                 refreshRangerUI();
                 doAutoSave();
             };
@@ -347,10 +387,16 @@ const initGame = async () => {
 
         const mainMenuUI = new MainMenuUI(
             document.getElementById('start-screen')!,
-            // Play
+            // Play — one-tap Home Reef (gift path)
             () => {
+                try {
+                    (game as any).audioManager?.startAudio?.();
+                    (game as any).audioManager?.playAmbient?.();
+                } catch {
+                    /* soft */
+                }
                 mainMenuUI.hide();
-                levelSelectUI.show();
+                startLevelFlow(GIFT_HOME_LEVEL_ID);
             },
             // Shop
             () => {
@@ -359,7 +405,7 @@ const initGame = async () => {
             },
             // Settings
             () => {
-                console.log('Settings clicked');
+                gameHUD.showSettingsPanel();
             },
             // Switch Diver
             () => {
@@ -372,11 +418,16 @@ const initGame = async () => {
                 }
                 profileSelectUI.show();
             },
-            // Buddy Dive
+            // Buddy Dive (local tabs only — honest)
             () => {
                 const name =
                     accountSystem.getActiveProfile()?.displayName || 'Ranger';
                 buddyDiveUI.show(name);
+            },
+            // More Levels (gift: 1–3 only)
+            () => {
+                mainMenuUI.hide();
+                levelSelectUI.show();
             }
         );
 
@@ -391,7 +442,6 @@ const initGame = async () => {
         (window as any).profileSelectUI = profileSelectUI;
         (window as any).accountSystem = accountSystem;
         (window as any).useGameStore = useGameStore;
-        (window as any).uiManager = uiManager;
         (window as any).rangerBadge = rangerBadge;
         (window as any).educationSystem = educationSystem;
 
@@ -461,18 +511,43 @@ const initGame = async () => {
                 (profileEl?.style.display !== 'none' && profileEl?.style.display !== '');
 
             if (e.key === 'Escape') {
+                // Close overlays first (settings / objectives / pause)
+                const settingsEl = document.querySelector('.aq-settings');
+                const objectivesEl = document.getElementById('aq-objectives');
+                const pauseEl = document.querySelector('.pause-screen');
+                if (settingsEl) {
+                    settingsEl.remove();
+                    return;
+                }
+                if (objectivesEl) {
+                    objectivesEl.remove();
+                    return;
+                }
+                if (pauseEl) {
+                    // Resume dive — never dump a kid to level select on ESC
+                    document.getElementById('btn-resume')?.dispatchEvent(new Event('click'));
+                    return;
+                }
                 if (isUIOpen) {
                     marinepediaUI.hide();
                     customizationShopUI.hide();
                     upgradeShopUI.hide();
                     levelSelectUI.hide();
-                } else if (game.isRunning) {
-                    game.stop();
-                    doAutoSave();
-                    levelSelectUI.show();
-                } else {
-                    levelSelectUI.show();
+                    return;
                 }
+                if (game.isRunning) {
+                    // Pause in place so Resume Dive works
+                    doAutoSave();
+                    gameHUD.showPauseMenu();
+                    return;
+                }
+                // Not diving — show main menu, not a random level list dump
+                const startScreen = document.getElementById('start-screen');
+                if (startScreen) {
+                    startScreen.classList.remove('hidden');
+                    startScreen.style.display = 'flex';
+                }
+                mainMenuUI.show();
             }
             if (e.key === 'u' || e.key === 'U') {
                 if (!isUIOpen && !game.isRunning) upgradeShopUI.show();
@@ -523,33 +598,12 @@ const initGame = async () => {
             }
         }
 
-        // ── 11. Dive In / debug buttons (legacy HTML) ────────────────────
+        // ── 11. Legacy Dive In button (if present) ───────────────────────
         const startBtn = document.getElementById('start-btn');
         if (startBtn) {
             startBtn.addEventListener('click', () => {
                 mainMenuUI.hide();
                 levelSelectUI.show();
-            });
-        }
-
-        const debugStartBtn = document.getElementById('debug-start');
-        if (debugStartBtn) {
-            debugStartBtn.style.display = 'block';
-            debugStartBtn.addEventListener('click', () => {
-                console.log('🔧 DEBUG: Force start button clicked');
-                if (loadingEl) loadingEl.classList.add('hidden');
-                profileSelectUI.hide();
-                // Ensure a profile is active
-                accountSystem.ensureDefaultProfiles();
-                applyProfileToUI();
-                const levelSystem = game.getLevelSystem();
-                if (!levelSystem.getCurrentLevel()) {
-                    startLevelFlow(1);
-                } else {
-                    game.start();
-                    canvasContainer.style.display = 'block';
-                    gameHUD.show();
-                }
             });
         }
 

@@ -32,7 +32,7 @@ export default defineConfig({
   publicDir: 'public',
   base: '/', // Ensure base path for Netlify
   server: {
-    port: 3000,
+    port: 5173,
     open: '/index-3d.html'
   },
   build: {

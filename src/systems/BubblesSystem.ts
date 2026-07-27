@@ -40,57 +40,58 @@ export class BubblesSystem {
         this.geometry.setAttribute('size', new THREE.BufferAttribute(this.sizes, 1));
         
         const material = new THREE.PointsMaterial({
-            color: 0x88ccff,
-            size: 0.3,
+            color: 0xa8e0ff,
+            size: 0.14,
             transparent: true,
-            opacity: 0.6,
+            opacity: 0.45,
             blending: THREE.AdditiveBlending,
             sizeAttenuation: true,
-            depthWrite: false
+            depthWrite: false,
         });
-        
+
         this.particles = new THREE.Points(this.geometry, material);
         this.scene.add(this.particles);
+        // Memory: soft trail only — not ambient confetti
+        this.emissionRate = 2.2;
     }
-    
+
     /**
-     * Emit bubbles from a position (e.g., around swimmer or sea floor)
+     * Emit soft round-ish bubbles (small points) near Jasmine / FX
      */
     emitBubbles(position: THREE.Vector3, count: number = 1): void {
         for (let i = 0; i < count; i++) {
             if (this.bubbles.length >= this.maxBubbles) {
-                // Remove oldest bubble
                 this.bubbles.shift();
             }
-            
+
             const bubble: Bubble = {
-                position: position.clone().add(new THREE.Vector3(
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 0.5,
-                    (Math.random() - 0.5) * 2
-                )),
-                velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.5,
-                    Math.random() * 2 + 1, // Upward velocity
-                    (Math.random() - 0.5) * 0.5
+                position: position.clone().add(
+                    new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.35,
+                        (Math.random() - 0.5) * 0.2,
+                        (Math.random() - 0.5) * 0.35
+                    )
                 ),
-                size: Math.random() * 0.2 + 0.1,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.15,
+                    0.8 + Math.random() * 1.1,
+                    (Math.random() - 0.5) * 0.15
+                ),
+                size: 0.05 + Math.random() * 0.08,
                 age: 0,
-                maxAge: 5 + Math.random() * 5 // 5-10 seconds
+                maxAge: 2.5 + Math.random() * 2,
             };
-            
+
             this.bubbles.push(bubble);
         }
     }
-    
-    /**
-     * Update bubble positions and remove old ones
-     */
+
     update(deltaTime: number, swimmerPosition?: THREE.Vector3): void {
-        // Emit bubbles around swimmer periodically
+        // Ambient emission OFF — only trail / FX emit (Memory Pass)
         if (swimmerPosition) {
             this.emissionTimer += deltaTime;
-            const emissionInterval = 1 / this.emissionRate;
+            // Rare soft ambient near player only when still
+            const emissionInterval = 1.8;
             if (this.emissionTimer >= emissionInterval) {
                 this.emitBubbles(swimmerPosition, 1);
                 this.emissionTimer = 0;

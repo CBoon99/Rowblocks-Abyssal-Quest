@@ -37,7 +37,7 @@ export class DiveBudget {
 
     getState(depthMeters: number, isSurfaced: boolean): DiveBudgetState {
         let status: DiveBudgetState['status'] = 'ok';
-        let message = 'Dive Budget OK';
+        let message = 'Air OK';
         if (this.air <= 0.12 || this.assisting) {
             status = 'assist';
             message = 'Buddy boost — floating up for fresh air';

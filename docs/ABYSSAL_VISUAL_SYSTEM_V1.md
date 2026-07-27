@@ -1,8 +1,21 @@
 # Abyssal Visual System v1 (Draft → lock after P0)
 
-**Status:** DRAFT for birthday design lock  
+**Status:** LOCKED to mock plate #1 (2026-07-17)  
 **Product soul:** Respect the Ocean  
-**Targets:** iPad Safari landscape primary; desktop secondary
+**Targets:** iPad Safari landscape primary; desktop secondary  
+**Reference image:** session assets / mock plate #1 (Jasmine third-person, glass HUD, dense reef)
+
+## Mock plate #1 layout (authoritative)
+
+| Zone | Content |
+|------|---------|
+| Top-left | Jasmine avatar · name · rank · Trust bar · Dive Budget |
+| Top-centre | Compass strip |
+| Top-right | Coins · Stars · Shells · Objective card |
+| Left rail | Marinepedia · Map · Quests · Shop · Settings (SVG) |
+| Bottom centre | Observe · Clean · Puzzle · Boost · Lantern |
+| Bottom-right | Discovery card · mini compass |
+| World | Dense multicolour coral · wreck landmark · litter/nets · god rays |
 
 ---
 

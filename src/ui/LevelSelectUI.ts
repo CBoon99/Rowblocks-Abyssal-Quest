@@ -1,4 +1,5 @@
 import { LevelSystem, LevelData } from '../systems/LevelSystem';
+import { GIFT_MAX_LEVEL_ID, isGiftLevel } from '../systems/GiftMode';
 
 export class LevelSelectUI {
     private container: HTMLElement;
@@ -20,8 +21,10 @@ export class LevelSelectUI {
     }
     
     render(): void {
-        this.levels = this.levelSystem.getAllLevels();
-        const unlockedLevels = this.levels.filter(l => l.unlocked);
+        // Birthday gift: only show levels 1–3; rest are "Soon" stubs (not 30 opaque cards)
+        const all = this.levelSystem.getAllLevels();
+        this.levels = all.filter((l) => isGiftLevel(l.id));
+        const unlockedLevels = this.levels.filter((l) => l.unlocked);
         
         // Reset selection to first unlocked level
         if (unlockedLevels.length > 0) {
@@ -31,14 +34,15 @@ export class LevelSelectUI {
         this.container.innerHTML = `
             <div class="level-select-screen">
                 <div class="level-select-header">
-                    <h2>Select Level</h2>
+                    <h2>Choose a Reef</h2>
+                    <p class="level-select-gift-note">Birthday gift: Home Reef + ${GIFT_MAX_LEVEL_ID} reefs. More later!</p>
                     <div class="level-stats">
                         <div class="stat-item">
-                            <span class="stat-icon">⭐</span>
+                            <span class="stat-icon">★</span>
                             <span id="total-stars">0</span> Stars
                         </div>
                         <div class="stat-item">
-                            <span class="stat-icon">💎</span>
+                            <span class="stat-icon">◆</span>
                             <span id="total-pearls">0</span> Pearls
                         </div>
                     </div>
@@ -47,7 +51,7 @@ export class LevelSelectUI {
                     ${this.levels.map(level => this.renderLevelCard(level)).join('')}
                 </div>
                 <div class="level-select-hint">
-                    <p>Use Arrow Keys to navigate • Enter to select • ESC to close</p>
+                    <p>Tip: “Dive Home Reef” on the menu skips this screen.</p>
                 </div>
                 <button class="btn-close" id="close-level-select">Close</button>
             </div>
@@ -169,29 +173,27 @@ export class LevelSelectUI {
         const stars = this.renderStars(level.stars);
         const lockedClass = level.unlocked ? '' : 'locked';
         const completedClass = level.stars > 0 ? 'completed' : '';
+        const homeTag = level.id === 1 ? '<div class="level-home-tag">GIFT</div>' : '';
         
         return `
             <div class="level-card ${lockedClass} ${completedClass}" id="level-${level.id}">
+                ${homeTag}
                 <div class="level-number">${level.id}</div>
                 <div class="level-name">${level.name}</div>
                 <div class="level-stars">${stars}</div>
                 <div class="level-info">
                     <div class="info-item">
-                        <span>⏱️</span>
-                        <span>${level.maxMoves} moves</span>
-                    </div>
-                    <div class="info-item">
-                        <span>💎</span>
-                        <span>${level.targetScore}</span>
+                        <span>moves</span>
+                        <span>${level.maxMoves}</span>
                     </div>
                 </div>
-                ${!level.unlocked ? '<div class="lock-overlay">🔒</div>' : ''}
+                ${!level.unlocked ? '<div class="lock-overlay">Soon</div>' : ''}
             </div>
         `;
     }
     
     private renderStars(count: number): string {
-        return '⭐'.repeat(count) + '☆'.repeat(3 - count);
+        return '★'.repeat(count) + '☆'.repeat(3 - count);
     }
     
     private updateStats(): void {

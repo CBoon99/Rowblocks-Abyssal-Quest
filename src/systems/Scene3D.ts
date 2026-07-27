@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PhysicsWorld } from './PhysicsWorld';
 import * as CANNON from 'cannon-es';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { WaterCaustics } from './WaterCaustics';
 import { OceanEnvironment } from './OceanEnvironment';
 import { REEF_ZONES, reefInfluence } from './WorldMap';
@@ -31,28 +32,29 @@ export class Scene3D {
     private floorBody: CANNON.Body | null = null;
     private underwaterFills: THREE.PointLight[] = [];
     private sandMaterial: THREE.MeshStandardMaterial | null = null;
+    private envMap: THREE.Texture | null = null;
 
     constructor(
         private scene: THREE.Scene,
         private physicsWorld: PhysicsWorld
     ) {
-        // Warm sky / cool seafloor hemisphere for realistic underwater fill
+        // Warm-sky / cool-floor — coral stays saturated, heroes read
         this.ambientLight = new THREE.HemisphereLight(
-            0x7ec8e8, // sky: bright cyan-blue
-            0x0a2a3a, // ground: deep teal
-            0.55
+            0xb8e8ff,
+            0x0a3548,
+            0.78
         );
         this.scene.add(this.ambientLight);
 
-        // Sun from above — warm directional (shadow map size from quality tier)
         const qc =
             typeof window !== 'undefined' ? (window as any).qualityConfig : null;
         const shadowMapSize =
             qc && typeof qc.shadowMapSize === 'number' ? qc.shadowMapSize : 2048;
         const shadowsEnabled = qc ? !!qc.shadows : true;
 
-        this.directionalLight = new THREE.DirectionalLight(0xfff0dd, 1.35);
-        this.directionalLight.position.set(40, 80, 30);
+        // Warm key sun (gold path + coral)
+        this.directionalLight = new THREE.DirectionalLight(0xfff0dd, 1.55);
+        this.directionalLight.position.set(18, 70, 35);
         this.directionalLight.castShadow = shadowsEnabled;
         this.directionalLight.shadow.mapSize.width = shadowMapSize;
         this.directionalLight.shadow.mapSize.height = shadowMapSize;
@@ -65,18 +67,19 @@ export class Scene3D {
         this.directionalLight.shadow.bias = -0.0003;
         this.scene.add(this.directionalLight);
 
-        // Cool underwater fill from the side
-        this.fillLight = new THREE.DirectionalLight(0x44aacc, 0.35);
-        this.fillLight.position.set(-30, 10, -40);
+        // Cool side fill + slight rim for silhouettes
+        this.fillLight = new THREE.DirectionalLight(0x5ec8ef, 0.55);
+        this.fillLight.position.set(-40, 22, -20);
         this.scene.add(this.fillLight);
     }
 
     async init(): Promise<void> {
-        console.log('🌊 Scene3D.init() started');
+        console.log('🌊 Scene3D.init() started — vertical slice Pass 1 palette');
         try {
-            // Environment fog / background — blue-green underwater
-            this.scene.background = new THREE.Color(0x0a3a4a);
-            this.scene.fog = new THREE.FogExp2(0x0c4050, 0.018);
+            // Clear navy — midground heroes must read
+            // Clear mid-water so heroes read; open ocean still softens with depth
+            this.scene.background = new THREE.Color(0x0a5c82);
+            this.scene.fog = new THREE.FogExp2(0x0c6290, 0.0054);
 
             console.log('💧 Initializing water caustics...');
             this.waterCaustics = new WaterCaustics();
@@ -107,10 +110,27 @@ export class Scene3D {
             this.createCausticsProjector();
             console.log('✅ Caustics projector created');
 
+            console.log('🌅 Loading env HDR (CC0 Poly Haven)…');
+            await this.loadEnvironmentMap();
             console.log('✅ Scene3D initialized successfully');
         } catch (error) {
             console.error('❌ Scene3D initialization failed:', error);
             throw error;
+        }
+    }
+
+    /** Soft HDR fill for PBR materials — not a visible skybox underwater */
+    private async loadEnvironmentMap(): Promise<void> {
+        try {
+            const rgbe = new RGBELoader();
+            const hdr = await rgbe.loadAsync('/textures/env/sky_1k.hdr');
+            hdr.mapping = THREE.EquirectangularReflectionMapping;
+            this.envMap = hdr;
+            this.scene.environment = hdr;
+            // Do not set scene.background — keep fog/color underwater look
+            console.log('  ✅ HDR env map applied (reflections only)');
+        } catch (e) {
+            console.warn('  ⚠️ HDR env skipped', e);
         }
     }
 
@@ -228,6 +248,18 @@ export class Scene3D {
                 h = h * (1 - nw * 0.9) + (reefH / reefW) * nw;
             }
 
+            // Pass 1: sandy swim corridor on Home Reef (mock composition path)
+            // Flatten + slightly raise a lane along +Z for clear framing
+            {
+                const pathX = Math.abs(x - 0);
+                const pathZ = y; // plane local Y = world Z
+                if (pathX < 4.5 && pathZ > -2 && pathZ < 22) {
+                    const edge = this.smoothstep(4.5, 1.2, pathX);
+                    const shelf = SHELF_Y - FLOOR_Y + 0.15;
+                    h = h * (1 - edge * 0.92) + shelf * edge * 0.92;
+                }
+            }
+
             positions.setZ(i, h);
         }
         geometry.computeVertexNormals();
@@ -239,18 +271,18 @@ export class Scene3D {
         const causticsMap = this.waterCaustics.getTexture();
 
         this.sandMaterial = new THREE.MeshStandardMaterial({
-            color: art.map ? 0xffffff : 0xd4c4a0,
+            // Golden swim lane (reference)
+            color: art.map ? 0xffe8c8 : 0xe8d4a8,
             map: sandMap,
             normalMap: art.normalMap || undefined,
-            normalScale: new THREE.Vector2(1.1, 1.1),
+            normalScale: new THREE.Vector2(1.15, 1.15),
             roughnessMap: art.roughnessMap || undefined,
-            roughness: art.roughnessMap ? 1.0 : 0.92,
+            roughness: art.roughnessMap ? 1.0 : 0.88,
             metalness: 0.02,
-            emissive: new THREE.Color(0x1a4455),
+            emissive: new THREE.Color(0x1a4a55),
             emissiveMap: causticsMap,
-            // Cap caustic emissive so seafloor stays realistic
-            emissiveIntensity: 0.18,
-            envMapIntensity: 0.45,
+            emissiveIntensity: 0.16,
+            envMapIntensity: 0.5,
         });
 
         this.oceanFloor = new THREE.Mesh(geometry, this.sandMaterial);
@@ -308,8 +340,10 @@ export class Scene3D {
     private createParticles(): void {
         const qc =
             typeof window !== 'undefined' ? (window as any).qualityConfig : null;
-        const particleCount =
-            qc && typeof qc.marineSnow === 'number' ? qc.marineSnow : 2400;
+        // Memory Pass: cut snow ~70% — was confetti killing every moment
+        const raw =
+            qc && typeof qc.marineSnow === 'number' ? qc.marineSnow : 800;
+        const particleCount = Math.max(40, Math.floor(raw * 0.28));
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
@@ -318,31 +352,19 @@ export class Scene3D {
 
         for (let i = 0; i < particleCount; i++) {
             const i3 = i * 3;
-            // Volume around play space + shelf
-            positions[i3] = (Math.random() - 0.5) * 100;
-            positions[i3 + 1] = FLOOR_Y + 1 + Math.random() * (SURFACE_Y - FLOOR_Y - 2);
-            positions[i3 + 2] = (Math.random() - 0.5) * 100;
+            positions[i3] = (Math.random() - 0.5) * 80;
+            positions[i3 + 1] = FLOOR_Y + 2 + Math.random() * (SURFACE_Y - FLOOR_Y - 4);
+            positions[i3 + 2] = (Math.random() - 0.5) * 80;
 
-            this.particleVelocities[i3] = (Math.random() - 0.5) * 0.25;
-            this.particleVelocities[i3 + 1] = (Math.random() - 0.5) * 0.12;
-            this.particleVelocities[i3 + 2] = (Math.random() - 0.5) * 0.25;
+            this.particleVelocities[i3] = (Math.random() - 0.5) * 0.12;
+            this.particleVelocities[i3 + 1] = 0.04 + Math.random() * 0.08;
+            this.particleVelocities[i3 + 2] = (Math.random() - 0.5) * 0.12;
 
-            // Soft white / cyan marine snow
-            const cold = Math.random();
-            if (cold < 0.55) {
-                colors[i3] = 0.85;
-                colors[i3 + 1] = 0.95;
-                colors[i3 + 2] = 1.0;
-            } else if (cold < 0.85) {
-                colors[i3] = 0.55;
-                colors[i3 + 1] = 0.9;
-                colors[i3 + 2] = 1.0;
-            } else {
-                colors[i3] = 1.0;
-                colors[i3 + 1] = 1.0;
-                colors[i3 + 2] = 1.0;
-            }
-            sizes[i] = 0.15 + Math.random() * 0.55;
+            // Soft cyan dust — never pure white squares
+            colors[i3] = 0.55 + Math.random() * 0.2;
+            colors[i3 + 1] = 0.75 + Math.random() * 0.15;
+            colors[i3 + 2] = 0.9 + Math.random() * 0.1;
+            sizes[i] = 0.04 + Math.random() * 0.1;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -350,13 +372,13 @@ export class Scene3D {
         geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
         const material = new THREE.PointsMaterial({
-            size: 0.35,
+            size: 0.12,
             vertexColors: true,
             transparent: true,
-            opacity: 0.55,
+            opacity: 0.28,
             blending: THREE.AdditiveBlending,
             sizeAttenuation: true,
-            depthWrite: false
+            depthWrite: false,
         });
 
         this.particles = new THREE.Points(geometry, material);
@@ -381,10 +403,13 @@ export class Scene3D {
     }
 
     private createUnderwaterFillLights(): void {
-        // Cyan fills over the reef for readable underwater lighting
+        // Path + hero marks get warm/cyan fills so moments read
         const fills: Array<[number, number, number, number]> = [
-            [0, 6, 0, 0.4],
-            [12, 4, -8, 0.28],
+            [0, 5, 8, 0.55], // golden path centre
+            [-6, 4, 10, 0.4], // turtle stage
+            [10, 4, 13, 0.35], // shark profile
+            [5, 5, 9, 0.4], // jelly lanterns
+            [12, 4, -8, 0.22],
             [-10, 5, 10, 0.28],
             [0, 12, 0, 0.22]
         ];
@@ -444,15 +469,8 @@ export class Scene3D {
         this.directionalLight.position.x = 40 + Math.sin(this.time * 0.05) * 12;
         this.directionalLight.position.z = 30 + Math.cos(this.time * 0.05) * 12;
 
-        // Caustics
+        // Caustics texture scroll
         this.waterCaustics.update(deltaTime);
-        if (this.sandMaterial) {
-            // Subtle caustic pulse, hard-capped at 0.25 for realistic seafloor
-            this.sandMaterial.emissiveIntensity = Math.min(
-                0.25,
-                0.18 + Math.sin(this.time * 0.7) * 0.06
-            );
-        }
 
         // Caustics projector orbit
         if (this.causticsProjector) {
@@ -494,22 +512,60 @@ export class Scene3D {
         // Kelp / god rays
         this.oceanEnv?.update(deltaTime);
 
-        // Depth + open-ocean fog: deep blue between reefs, clearer on shelves
+        // Memory Pass fog: clear on reef (moments readable), deeper open blue
         if (cameraPosition && this.scene.fog instanceof THREE.FogExp2) {
             const depth = Math.max(0, SURFACE_Y - cameraPosition.y);
             const inf = reefInfluence(cameraPosition.x, cameraPosition.z);
-            // Open water: denser deep-blue fog; on reef: lighter, greener
             const open = 1 - inf;
-            const baseDensity = 0.008 + open * 0.014 + (depth / 50) * 0.012;
+            // Light shelf so turtle/manta/shark read; open blue still has depth
+            const baseDensity = 0.0036 + open * 0.0095 + (depth / 80) * 0.0065;
             this.scene.fog.density = baseDensity;
-            // Open ocean → deep blue; reef → cyan-teal
-            const r = 0.02 * inf + 0.02 * open;
-            const g = 0.22 * inf + 0.08 * open;
-            const b = 0.28 * inf + 0.22 * open;
+            // Slightly warmer teal on reef, cooler open water
+            const r = 0.035 * inf + 0.018 * open;
+            const g = 0.32 * inf + 0.12 * open;
+            const b = 0.52 * inf + 0.3 * open;
             this.scene.fog.color.setRGB(r, g, b);
             if (this.scene.background instanceof THREE.Color) {
-                this.scene.background.setRGB(r * 0.85, g * 0.9, b);
+                this.scene.background.setRGB(
+                    Math.min(1, r * 1.05),
+                    Math.min(1, g * 1.02),
+                    Math.min(1, b * 1.02)
+                );
             }
+        }
+
+        // Subtle caustics — don't bleach sand
+        if (this.sandMaterial) {
+            let e = 0.14 + Math.sin(this.time * 0.7) * 0.04;
+            // Memory: reef thanks you — warm pulse after clean
+            try {
+                const pulse = (window as any).__reefThanksPulse;
+                if (pulse && performance.now() - pulse.t < 4000) {
+                    const u = 1 - (performance.now() - pulse.t) / 4000;
+                    e += 0.2 * u;
+                    this.sandMaterial.emissive = new THREE.Color(0x3a8a6a).lerp(
+                        new THREE.Color(0x1a4a55),
+                        1 - u
+                    );
+                } else {
+                    this.sandMaterial.emissive = new THREE.Color(0x1a4a55);
+                }
+            } catch {
+                /* soft */
+            }
+            this.sandMaterial.emissiveIntensity = Math.min(0.35, e);
+        }
+
+        // Home reef brighter fill when thriving
+        try {
+            const h =
+                (window as any).__reefThanksPulse?.health ??
+                60;
+            if (this.ambientLight) {
+                this.ambientLight.intensity = 0.68 + Math.min(0.2, (h - 50) / 200);
+            }
+        } catch {
+            /* soft */
         }
     }
 

@@ -5,6 +5,7 @@ export class MainMenuUI {
     private onSettings: () => void;
     private onSwitchProfile?: () => void;
     private onBuddyDive?: () => void;
+    private onMoreLevels?: () => void;
     private diverName: string = 'Diver';
     private rangerRankName: string = '';
     private rangerCp: number = 0;
@@ -15,7 +16,8 @@ export class MainMenuUI {
         onShop: () => void,
         onSettings: () => void,
         onSwitchProfile?: () => void,
-        onBuddyDive?: () => void
+        onBuddyDive?: () => void,
+        onMoreLevels?: () => void
     ) {
         this.container = container;
         this.onPlay = onPlay;
@@ -23,6 +25,7 @@ export class MainMenuUI {
         this.onSettings = onSettings;
         this.onSwitchProfile = onSwitchProfile;
         this.onBuddyDive = onBuddyDive;
+        this.onMoreLevels = onMoreLevels;
         this.render();
     }
 
@@ -41,38 +44,43 @@ export class MainMenuUI {
         this.container.innerHTML = `
             <div class="main-menu-screen">
                 <div class="menu-content">
-                    <h1>Rowblocks: Abyssal Quest</h1>
-                    <p class="subtitle">3D Immersive Underwater Puzzle Adventure</p>
+                    <h1>Abyssal Quest</h1>
+                    <p class="subtitle">Ocean Ranger · Respect the Ocean</p>
                     <div class="menu-diver-badge" id="menu-diver-badge">
-                        <span class="diver-icon">🤿</span>
-                        <span class="diver-label">Diver:</span>
+                        <span class="diver-icon">🌊</span>
+                        <span class="diver-label">Ranger:</span>
                         <span class="diver-name" id="menu-diver-name">${this.escapeHtml(this.diverName)}</span>
                     </div>
                     ${rangerLine}
                     <div class="menu-buttons">
                         <button class="menu-btn btn-primary" id="btn-play">
-                            <span class="btn-icon">🎮</span>
-                            <span>Play</span>
+                            <span class="btn-icon">▶</span>
+                            <span>Dive Home Reef</span>
                         </button>
-                        <button class="menu-btn btn-secondary" id="btn-buddy">
-                            <span class="btn-icon">🤝</span>
-                            <span>Buddy Dive</span>
+                        <button class="menu-btn btn-secondary" id="btn-levels" title="More reefs (gift: 1–3)">
+                            <span class="btn-icon">▣</span>
+                            <span>More Levels</span>
                         </button>
                         <button class="menu-btn btn-secondary" id="btn-shop">
-                            <span class="btn-icon">🛍️</span>
-                            <span>Upgrade Shop</span>
+                            <span class="btn-icon">◆</span>
+                            <span>Upgrades</span>
                         </button>
                         <button class="menu-btn btn-secondary" id="btn-settings">
-                            <span class="btn-icon">⚙️</span>
+                            <span class="btn-icon">⚙</span>
                             <span>Settings</span>
                         </button>
                         ${this.onSwitchProfile ? `
                         <button class="menu-btn btn-secondary" id="btn-switch-diver">
-                            <span class="btn-icon">👥</span>
-                            <span>Switch Diver</span>
+                            <span class="btn-icon">◎</span>
+                            <span>Switch Ranger</span>
                         </button>
                         ` : ''}
+                        <button class="menu-btn btn-secondary menu-btn-subtle" id="btn-buddy" title="Same browser tabs only — not online multiplayer">
+                            <span class="btn-icon">+</span>
+                            <span>Buddy (local tabs)</span>
+                        </button>
                     </div>
+                    <p class="menu-gift-tip">Birthday gift loop: Home Reef · be gentle · clean trash · meet friends</p>
                     <div class="menu-stats">
                         <div class="stat-card">
                             <div class="stat-value" id="total-levels">0</div>
@@ -93,6 +101,9 @@ export class MainMenuUI {
 
         document.getElementById('btn-play')?.addEventListener('click', () => {
             this.onPlay();
+        });
+        document.getElementById('btn-levels')?.addEventListener('click', () => {
+            this.onMoreLevels?.();
         });
         document.getElementById('btn-buddy')?.addEventListener('click', () => {
             this.onBuddyDive?.();

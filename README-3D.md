@@ -38,13 +38,17 @@ npm run preview
 
 ## 🎯 Controls
 
-- **WASD** - Swim forward/back/strafe
-- **Mouse** - Look around (click to enable pointer lock)
+- **WASD / Arrows** - Swim forward/back/strafe
+- **Mouse** - Look around (click to enable pointer lock on desktop)
 - **Space** - Swim up
 - **Shift** - Swim down
-- **Click** - Select block row/plane
+- **E** - Observe nearby fish
+- **F** - Clean trash / free ghost nets
+- **Click** - Select block row/plane (puzzle mode)
 - **Arrow Keys** - Slide selected row
+- **1–5** - Tool buttons (Observe, Clean, Puzzle, Boost, Lantern)
 - **ESC** - Pause
+- **Touch (iPad)** - Virtual stick, drag-to-look, Observe/Clean buttons
 
 ## 🏗️ Project Structure
 
@@ -54,12 +58,15 @@ src/
 ├── systems/
 │   ├── Game.ts            # Main game controller
 │   ├── Scene3D.ts         # 3D scene setup (ocean floor, lighting, particles)
-│   ├── SwimmerController.ts # First-person swimmer controls
+│   ├── SwimmerController.ts # Third-person Jasmine swimmer controls
 │   ├── BlockPuzzleSystem.ts # Block grid and sliding mechanics
 │   ├── PhysicsWorld.ts    # Cannon-es physics integration
 │   └── AudioManager.ts    # Howler.js audio system
 └── ui/
-    └── UIManager.ts       # UI overlay management
+    ├── GameHUD.ts         # In-game HUD overlay
+    ├── MainMenuUI.ts      # Main menu screen
+    ├── MobileControls.ts # Touch / iPad controls
+    └── MarinepediaUI.ts   # Fish collection encyclopedia
 ```
 
 ## 🎨 Technical Stack
@@ -72,17 +79,17 @@ src/
 
 ## 📝 Development Roadmap
 
-- [x] Base 3D scene with ocean floor
-- [x] First-person swimmer controller
-- [x] Block puzzle system with row sliding
+- [x] Base 3D scene with ocean floor, caustics, and lighting
+- [x] Third-person swimmer controller (Jasmine)
+- [x] Block puzzle system with row sliding and honest win conditions
 - [x] Physics integration
-- [ ] Visual effects (caustics, god rays)
-- [ ] Audio system with spatial sound
-- [ ] VR/WebXR support
-- [ ] Level system and progression
-- [ ] UI polish and menus
-- [ ] Mobile touch controls
-- [ ] Performance optimization
+- [x] Level system and progression (30 levels, localStorage persistence)
+- [x] UI polish and menus (main menu, HUD, Marinepedia)
+- [x] Mobile touch controls (iPad stick + look + actions)
+- [x] Visual effects (caustics, particles, fog)
+- [ ] Audio system with real underwater soundscape
+- [ ] VR/WebXR full game loop
+- [ ] Performance optimization (iPad FPS verification)
 
 ## 🌊 Next Steps
 
