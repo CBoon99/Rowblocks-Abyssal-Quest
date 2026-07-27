@@ -83,7 +83,14 @@ export class GameHUD {
               <div class="aq-identity">
                 <div class="aq-identity-row">
                   <div class="aq-avatar" aria-hidden="true">
-                    <div class="aq-avatar-face"></div>
+                    <img
+                      class="aq-avatar-img"
+                      src="/ui/jasmine-avatar.png"
+                      alt=""
+                      width="52"
+                      height="52"
+                      draggable="false"
+                    />
                   </div>
                   <div class="aq-identity-text">
                     <div class="aq-name">${this.escapeHtml(name.toUpperCase())}</div>
@@ -100,7 +107,7 @@ export class GameHUD {
                     <span class="aq-bar-val" id="aq-trust-val">—</span>
                   </div>
                   <div class="aq-bar-row">
-                    <span class="aq-ico-air">◉</span>
+                    <span class="aq-ico-air">${ICONS.bubbles}</span>
                     <span class="aq-bar-label">AIR</span>
                     <div class="aq-bar aq-bar-air">
                       <div class="aq-bar-fill" id="aq-air-fill" style="width:100%"></div>

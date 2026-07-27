@@ -1130,7 +1130,7 @@ export class Game {
                         }
                     } else {
                         Toast.show(tierLabel, {
-                            icon: observeTier === 'trusting' ? '💙' : '👁️',
+                            icon: observeTier === 'trusting' ? '♥' : '·',
                             subtitle: `${displayName}${
                                 trait ? ` · ${trait}` : ''
                             }${funFact ? ' — ' + funFact.slice(0, 70) : ''}`,
@@ -1142,21 +1142,21 @@ export class Game {
                 /* toast optional */
             }
 
-            // Update quests
+            // Update quests (Observe language — legacy catch_* aliases still accepted)
             if (this.questSystem) {
-                this.questSystem.updateQuestProgress('catch_fish', 1);
+                this.questSystem.updateQuestProgress('observe_fish', 1);
                 if (fish.type === 'clownfish' || speciesId === 'clownfish') {
-                    this.questSystem.updateQuestProgress('catch_clownfish', 1);
+                    this.questSystem.updateQuestProgress('observe_clownfish', 1);
                 } else if (fish.type === 'angelfish' || speciesId === 'angelfish') {
-                    this.questSystem.updateQuestProgress('catch_angelfish', 1);
+                    this.questSystem.updateQuestProgress('observe_angelfish', 1);
                 }
             }
 
-            // Play catch sound (soft-fail)
+            // Soft observe chime
             try {
                 this.audioManager.playSound('collect');
             } catch (e) {
-                console.warn('Could not play collect sound:', e);
+                console.warn('Could not play observe sound:', e);
             }
 
             this.fishSystem.removeFish(fish);
@@ -1170,7 +1170,9 @@ export class Game {
                 /* optional */
             }
 
-            console.log(`🎣 Fish caught: ${speciesId}! ${this.fishSystem.getFishes().length} remaining`);
+            console.log(
+                `Observed: ${speciesId}! ${this.fishSystem.getFishes().length} remaining`
+            );
             return true;
         }
 

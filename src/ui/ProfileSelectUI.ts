@@ -134,7 +134,7 @@ export class ProfileSelectUI {
                     <span class="profile-card-meta">
                         Last played: ${this.formatLastPlayed(p.lastPlayedAt)}
                         · ⭐ ${stars}
-                        · 💎 ${p.pearls ?? 0}
+                        · ◆ ${p.pearls ?? 0} pearls
                     </span>
                 </span>
                 <span class="profile-card-arrow">›</span>

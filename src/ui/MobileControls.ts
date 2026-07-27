@@ -4,6 +4,7 @@
  */
 
 import { isTouchPrimary } from '../systems/QualitySettings';
+import { ICONS } from './HudIcons';
 
 export interface MobileControlsHost {
     setMoveState(state: {
@@ -73,13 +74,13 @@ export class MobileControls {
           <button type="button" class="mc-btn mc-vert" id="mc-up" aria-label="Swim up">↑</button>
           <button type="button" class="mc-btn mc-vert" id="mc-down" aria-label="Swim down">↓</button>
           <button type="button" class="mc-btn mc-action mc-observe" id="mc-observe" aria-label="Observe fish">
-            <span class="mc-ico">🐠</span><span class="mc-txt">Observe</span>
+            <span class="mc-ico mc-ico-svg">${ICONS.binoculars}</span><span class="mc-txt">Observe</span>
           </button>
           <button type="button" class="mc-btn mc-action mc-clean" id="mc-clean" aria-label="Clean ocean">
-            <span class="mc-ico">♻️</span><span class="mc-txt">Clean</span>
+            <span class="mc-ico mc-ico-svg">${ICONS.trash}</span><span class="mc-txt">Clean</span>
           </button>
           <button type="button" class="mc-btn mc-toggle" id="mc-puzzle" aria-label="Puzzle mode">
-            <span class="mc-txt">Puzzle</span>
+            <span class="mc-ico mc-ico-svg">${ICONS.puzzle}</span><span class="mc-txt">Puzzle</span>
           </button>
         </div>
 
@@ -106,7 +107,7 @@ export class MobileControls {
         </div>
 
         <div class="mc-orient" id="mc-orient">
-          <div class="mc-orient-card">🔄 Turn your iPad sideways to dive!</div>
+          <div class="mc-orient-card">Turn your iPad sideways to dive!</div>
         </div>
       </div>
     `;

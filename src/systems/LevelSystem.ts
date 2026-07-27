@@ -495,12 +495,18 @@ export class LevelSystem {
         this.currentLevelData.stars = Math.max(this.currentLevelData.stars, this.stars);
         this.setBestScore(this.currentLevel, this.score);
 
-        // Award gems for completing level
+        // Gift day: award pearls (primary currency) + keep gems in store for legacy shop
+        const pearlReward = this.stars * 10 + 15;
         const store = (window as any).useGameStore;
         if (store) {
-            const gemReward = this.stars * 10; // 10 gems per star
-            store.getState().addGems(gemReward);
-            console.log(`💎 Level complete! Awarded ${gemReward} gems (${this.stars} stars)`);
+            store.getState().addGems?.(pearlReward);
+        }
+        try {
+            const game = (window as any).game;
+            game?.getUpgradeSystem?.()?.addCurrency?.(pearlReward);
+            console.log(`◆ Level complete! +${pearlReward} pearls (${this.stars} stars)`);
+        } catch {
+            /* soft */
         }
 
         // Unlock next level

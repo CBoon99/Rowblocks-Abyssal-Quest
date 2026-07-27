@@ -39,9 +39,21 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true,
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       input: {
         main: './index-3d.html'
+      },
+      output: {
+        // Split heavy vendors so iPad can cache Three.js separately from game code
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('three')) return 'vendor-three';
+          if (id.includes('cannon-es')) return 'vendor-cannon';
+          if (id.includes('howler')) return 'vendor-howler';
+          if (id.includes('zustand')) return 'vendor-zustand';
+          return 'vendor';
+        }
       }
     }
   },

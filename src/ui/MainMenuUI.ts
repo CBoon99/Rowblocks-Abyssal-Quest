@@ -47,7 +47,7 @@ export class MainMenuUI {
                     <h1>Abyssal Quest</h1>
                     <p class="subtitle">Ocean Ranger · Respect the Ocean</p>
                     <div class="menu-diver-badge" id="menu-diver-badge">
-                        <span class="diver-icon">🌊</span>
+                        <span class="diver-icon" aria-hidden="true">◆</span>
                         <span class="diver-label">Ranger:</span>
                         <span class="diver-name" id="menu-diver-name">${this.escapeHtml(this.diverName)}</span>
                     </div>
@@ -75,12 +75,9 @@ export class MainMenuUI {
                             <span>Switch Ranger</span>
                         </button>
                         ` : ''}
-                        <button class="menu-btn btn-secondary menu-btn-subtle" id="btn-buddy" title="Same browser tabs only — not online multiplayer">
-                            <span class="btn-icon">+</span>
-                            <span>Buddy (local tabs)</span>
-                        </button>
+                        <!-- Buddy hidden for gift day (local-tabs skeleton only — not for kids) -->
                     </div>
-                    <p class="menu-gift-tip">Birthday gift loop: Home Reef · be gentle · clean trash · meet friends</p>
+                    <p class="menu-gift-tip">Swim gentle · clean glowing trash · meet the turtle · You did it!</p>
                     <div class="menu-stats">
                         <div class="stat-card">
                             <div class="stat-value" id="total-levels">0</div>

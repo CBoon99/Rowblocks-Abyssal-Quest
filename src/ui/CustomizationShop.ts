@@ -60,9 +60,46 @@ export class CustomizationShop {
         });
     }
     
+    /** Gift day: single wallet — pearls (upgrades) + legacy gems treated as pearls */
+    private pearlBalance(): number {
+        const gems = useGameStore.getState().gems ?? 0;
+        let pearls = 0;
+        try {
+            pearls = (window as any).game?.getUpgradeSystem?.()?.getCurrency?.() ?? 0;
+        } catch {
+            /* soft */
+        }
+        return gems + pearls;
+    }
+
+    /** Spend cost from store gems first, then upgrade pearls */
+    private spendPearls(cost: number): boolean {
+        if (cost <= 0) return true;
+        if (this.pearlBalance() < cost) return false;
+        const store = useGameStore.getState();
+        let left = cost;
+        const gems = store.gems ?? 0;
+        if (gems > 0 && left > 0) {
+            const take = Math.min(gems, left);
+            if (store.spendGems(take)) left -= take;
+        }
+        if (left > 0) {
+            try {
+                const up = (window as any).game?.getUpgradeSystem?.();
+                if (up && typeof up.getCurrency === 'function' && up.getCurrency() >= left) {
+                    up.addCurrency(-left);
+                    left = 0;
+                }
+            } catch {
+                /* soft */
+            }
+        }
+        return left === 0;
+    }
+
     render(): void {
         const store = useGameStore.getState();
-        const currentGems = store.gems;
+        const currentPearls = this.pearlBalance();
         const currentSkin = store.currentSkin;
         const helmetLevel = store.helmetUpgrade;
         const netLevel = Math.floor((store.netRange - 5) / 1); // Convert range to level
@@ -70,34 +107,34 @@ export class CustomizationShop {
         this.container.innerHTML = `
             <div class="customization-shop-screen">
                 <div class="shop-header">
-                    <h2>🛍️ Customization Shop</h2>
+                    <h2>Customization Shop</h2>
                     <button class="close-btn" id="shop-close">✕</button>
                 </div>
                 <div class="shop-currency">
-                    <span class="currency-icon">💎</span>
-                    <span class="currency-amount">${currentGems} Gems</span>
+                    <span class="currency-icon">◆</span>
+                    <span class="currency-amount">${currentPearls} Pearls</span>
                 </div>
                 
                 <div class="shop-section">
                     <h3>Skins</h3>
                     <div class="shop-items">
                         ${this.skins.map(skin => `
-                            <div class="shop-item ${currentSkin === skin.id ? 'selected' : ''} ${skin.cost > currentGems ? 'cant-afford' : ''}">
+                            <div class="shop-item ${currentSkin === skin.id ? 'selected' : ''} ${skin.cost > currentPearls ? 'cant-afford' : ''}">
                                 <div class="item-preview" style="background: ${skin.color}"></div>
                                 <div class="item-info">
                                     <div class="item-name">${skin.name}</div>
                                     <div class="item-desc">${skin.description}</div>
                                     ${skin.cost > 0 ? `
                                         <div class="item-cost">
-                                            <span class="cost-icon">💎</span>
+                                            <span class="cost-icon">◆</span>
                                             <span class="cost-amount">${skin.cost}</span>
                                         </div>
                                     ` : '<div class="item-cost">Owned</div>'}
                                 </div>
                                 ${skin.cost > 0 && currentSkin !== skin.id ? `
-                                    <button class="btn-buy" ${skin.cost > currentGems ? 'disabled' : ''} 
+                                    <button class="btn-buy" ${skin.cost > currentPearls ? 'disabled' : ''} 
                                         data-skin-id="${skin.id}" data-cost="${skin.cost}">
-                                        ${skin.cost > currentGems ? 'Can\'t Afford' : 'Buy'}
+                                        ${skin.cost > currentPearls ? 'Can\'t Afford' : 'Buy'}
                                     </button>
                                 ` : currentSkin === skin.id ? '<div class="item-owned">Equipped</div>' : ''}
                             </div>
@@ -108,8 +145,8 @@ export class CustomizationShop {
                 <div class="shop-section">
                     <h3>Upgrades</h3>
                     <div class="shop-items">
-                        ${this.renderUpgrade('helmet', helmetLevel, currentGems)}
-                        ${this.renderUpgrade('net', netLevel, currentGems)}
+                        ${this.renderUpgrade('helmet', helmetLevel, currentPearls)}
+                        ${this.renderUpgrade('net', netLevel, currentPearls)}
                     </div>
                 </div>
             </div>
@@ -150,17 +187,17 @@ export class CustomizationShop {
         document.addEventListener('keydown', escapeHandler);
     }
     
-    private renderUpgrade(id: string, currentLevel: number, gems: number): string {
+    private renderUpgrade(id: string, currentLevel: number, pearls: number): string {
         const upgrade = this.upgrades.find(u => u.id === id);
         if (!upgrade) return '';
         
         const isMaxLevel = currentLevel >= upgrade.maxLevel;
         const nextCost = upgrade.cost * (currentLevel + 1);
-        const canAfford = gems >= nextCost;
+        const canAfford = pearls >= nextCost;
         
         return `
             <div class="shop-item ${isMaxLevel ? 'maxed' : ''}">
-                <div class="item-icon">${id === 'helmet' ? '💡' : '🎣'}</div>
+                <div class="item-icon">${id === 'helmet' ? '◇' : '◈'}</div>
                 <div class="item-info">
                     <div class="item-name">${upgrade.name}</div>
                     <div class="item-desc">${upgrade.description}</div>
@@ -169,7 +206,7 @@ export class CustomizationShop {
                 ${!isMaxLevel ? `
                     <button class="btn-buy" ${!canAfford ? 'disabled' : ''}
                         data-upgrade-id="${id}" data-cost="${nextCost}">
-                        ${!canAfford ? 'Can\'t Afford' : `Upgrade (💎${nextCost})`}
+                        ${!canAfford ? 'Can\'t Afford' : `Upgrade (◆${nextCost})`}
                     </button>
                 ` : '<div class="item-owned">Max Level</div>'}
             </div>
@@ -177,31 +214,34 @@ export class CustomizationShop {
     }
     
     private buySkin(skinId: string, cost: number): void {
-        const store = useGameStore.getState();
-        if (store.buySkin(skinId, cost)) {
-            // Apply skin to swimmer (will be handled by SwimmerController)
-            this.render();
-        } else {
-            // Show error
-            alert('Not enough gems!');
+        if (!this.spendPearls(cost)) {
+            alert('Not enough pearls!');
+            return;
         }
+        useGameStore.setState((state) => {
+            const owned = state.ownedSkins.includes(skinId)
+                ? state.ownedSkins
+                : [...state.ownedSkins, skinId];
+            return { currentSkin: skinId, ownedSkins: owned };
+        });
+        this.render();
     }
     
     private buyUpgrade(upgradeId: string, cost: number): void {
-        const store = useGameStore.getState();
-        let success = false;
-        
+        if (!this.spendPearls(cost)) {
+            alert('Not enough pearls!');
+            return;
+        }
         if (upgradeId === 'helmet') {
-            success = store.buyHelmetUpgrade(cost);
+            useGameStore.setState((s) => ({
+                helmetUpgrade: (s.helmetUpgrade ?? 0) + 1,
+            }));
         } else if (upgradeId === 'net') {
-            success = store.buyNetUpgrade(cost);
+            useGameStore.setState((s) => ({
+                netRange: (s.netRange ?? 5) + 1.0,
+            }));
         }
-        
-        if (success) {
-            this.render();
-        } else {
-            alert('Not enough gems!');
-        }
+        this.render();
     }
     
     show(): void {

@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke-1p-2p.mjs",
+    "smoke:1p": "SMOKE_1P=1 node scripts/smoke-1p-2p.mjs",
+    "verify": "vitest run && tsc --noEmit && npm run build"
   },
   "dependencies": {
     "cannon-es": "^0.20.0",

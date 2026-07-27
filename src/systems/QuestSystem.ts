@@ -1,176 +1,198 @@
 import { useGameStore, Quest } from '../stores/GameStore';
 
+/**
+ * Soft ranger missions — Observe / Discover language (never "catch").
+ * Aligned with Respect the Ocean + gift-day Home Reef loop.
+ */
 export class QuestSystem {
     private quests: Quest[] = [];
     private completedQuests: Set<string> = new Set();
-    
+
     constructor() {
         this.initializeQuests();
     }
-    
-    /**
-     * Initialize starting quests
-     */
+
     private initializeQuests(): void {
         this.quests = [
             {
-                id: 'first_catch',
-                title: 'First Catch',
-                description: 'Catch your first fish',
-                objective: 'Catch 1 fish',
+                id: 'first_observe',
+                title: 'First Friend',
+                description: 'Gently observe your first sea creature',
+                objective: 'Observe 1 fish',
                 target: 1,
                 current: 0,
                 completed: false,
                 reward: { gems: 10 },
-                storyText: 'The abyss whispers... You have caught your first creature. Many more await discovery.'
+                storyText:
+                    'She noticed you. Stay gentle — more friends are waiting on the reef.',
             },
             {
-                id: 'collect_clownfish',
-                title: 'Clownfish Collector',
-                description: 'Catch 5 clownfish',
-                objective: 'Catch 5 clownfish',
+                id: 'observe_clownfish',
+                title: 'Clownfish Friends',
+                description: 'Observe 5 clownfish',
+                objective: 'Observe 5 clownfish',
                 target: 5,
                 current: 0,
                 completed: false,
                 reward: { gems: 25 },
-                storyText: 'These colorful fish are common in shallow waters. Your collection grows.'
+                storyText:
+                    'These bright reef friends love anemones. Your Marinepedia is growing.',
             },
             {
                 id: 'deep_dive',
-                title: 'Deep Dive',
+                title: 'Deeper Blue',
                 description: 'Reach 50 meters depth',
                 objective: 'Reach 50m depth',
                 target: 50,
                 current: 0,
                 completed: false,
                 reward: { gems: 30 },
-                storyText: 'You venture deeper into the abyss. The pressure increases, but treasures await below.'
+                storyText:
+                    'You ventured deeper. Plan your air — and leave the wildlife plenty of space.',
             },
             {
-                id: 'collect_angelfish',
-                title: 'Angelfish Enthusiast',
-                description: 'Catch 3 angelfish',
-                objective: 'Catch 3 angelfish',
+                id: 'observe_angelfish',
+                title: 'Angelfish Watcher',
+                description: 'Observe 3 angelfish',
+                objective: 'Observe 3 angelfish',
                 target: 3,
                 current: 0,
                 completed: false,
                 reward: { gems: 20 },
-                storyText: 'Angelfish are graceful swimmers. Their beauty adds to your collection.'
+                storyText: 'Angelfish glide like living sails. Beautiful and calm.',
             },
             {
-                id: 'master_collector',
-                title: 'Master Collector',
-                description: 'Catch 20 fish total',
-                objective: 'Catch 20 fish',
+                id: 'master_observer',
+                title: 'Ocean Observer',
+                description: 'Observe 20 fish total',
+                objective: 'Observe 20 fish',
                 target: 20,
                 current: 0,
                 completed: false,
                 reward: { gems: 50 },
-                storyText: 'You are becoming a true abyssal explorer. The Marinepedia grows with your discoveries.'
-            }
+                storyText:
+                    'You are becoming a true Ocean Ranger. The Marinepedia grows with every gentle look.',
+            },
+            {
+                id: 'first_cleanup',
+                title: 'Reef Cleaner',
+                description: 'Clean 3 pieces of trash',
+                objective: 'Clean 3 trash',
+                target: 3,
+                current: 0,
+                completed: false,
+                reward: { gems: 15 },
+                storyText: 'The path is clearer. Fish can breathe easier because of you.',
+            },
         ];
-        
-        // Load into Zustand store
+
         useGameStore.setState({ quests: this.quests });
     }
-    
+
     /**
-     * Update quest progress based on action
+     * Update quest progress based on action.
+     * Accepted actions: observe_fish, observe_clownfish, observe_angelfish,
+     * depth, cleanup (also accepts legacy catch_* aliases).
      */
     updateQuestProgress(action: string, value: number = 1): void {
         const store = useGameStore.getState();
-        
+        // Map legacy catch_* → observe_* so Game.collectFish keep working
+        const normalized =
+            action === 'catch_fish'
+                ? 'observe_fish'
+                : action === 'catch_clownfish'
+                  ? 'observe_clownfish'
+                  : action === 'catch_angelfish'
+                    ? 'observe_angelfish'
+                    : action;
+
         this.quests.forEach((quest) => {
             if (quest.completed) return;
-            
+
             let updated = false;
-            
-            // Check quest objectives
-            if (quest.id === 'first_catch' && action === 'catch_fish') {
+
+            if (quest.id === 'first_observe' && normalized === 'observe_fish') {
                 store.updateQuestProgress(quest.id, quest.current + value);
                 updated = true;
-            } else if (quest.id === 'collect_clownfish' && action === 'catch_clownfish') {
+            } else if (
+                quest.id === 'observe_clownfish' &&
+                normalized === 'observe_clownfish'
+            ) {
                 store.updateQuestProgress(quest.id, quest.current + value);
                 updated = true;
-            } else if (quest.id === 'collect_angelfish' && action === 'catch_angelfish') {
+            } else if (
+                quest.id === 'observe_angelfish' &&
+                normalized === 'observe_angelfish'
+            ) {
                 store.updateQuestProgress(quest.id, quest.current + value);
                 updated = true;
-            } else if (quest.id === 'master_collector' && action === 'catch_fish') {
+            } else if (
+                quest.id === 'master_observer' &&
+                normalized === 'observe_fish'
+            ) {
                 store.updateQuestProgress(quest.id, quest.current + value);
                 updated = true;
-            } else if (quest.id === 'deep_dive' && action === 'depth') {
+            } else if (quest.id === 'deep_dive' && normalized === 'depth') {
                 store.updateQuestProgress(quest.id, Math.max(quest.current, value));
                 updated = true;
+            } else if (quest.id === 'first_cleanup' && normalized === 'cleanup') {
+                store.updateQuestProgress(quest.id, quest.current + value);
+                updated = true;
             }
-            
-            // Check if quest completed
+
             if (updated) {
                 const updatedQuest = store.quests.find((q) => q.id === quest.id);
-                if (updatedQuest && updatedQuest.current >= updatedQuest.target && !updatedQuest.completed) {
+                if (
+                    updatedQuest &&
+                    updatedQuest.current >= updatedQuest.target &&
+                    !updatedQuest.completed
+                ) {
                     this.completeQuest(quest.id);
                 }
             }
         });
     }
-    
-    /**
-     * Complete a quest and show popup
-     */
+
     private completeQuest(questId: string): void {
         const quest = this.quests.find((q) => q.id === questId);
-        if (!quest || quest.completed) return;
-        
-        quest.completed = true;
+        if (!quest || this.completedQuests.has(questId)) return;
+
         this.completedQuests.add(questId);
-        
-        const store = useGameStore.getState();
-        store.completeQuest(questId);
-        
-        // Show quest complete popup
-        this.showQuestCompletePopup(quest);
+        useGameStore.getState().completeQuest(questId);
+
+        // Gift economy: also credit pearls (primary currency) when gems are awarded
+        try {
+            const pearls = quest.reward?.gems ?? 0;
+            if (pearls > 0) {
+                const game = (window as any).game;
+                game?.getUpgradeSystem?.()?.addCurrency?.(pearls);
+            }
+        } catch {
+            /* soft */
+        }
+
+        try {
+            (window as any).DiscoveryToast?.show?.(quest.title, {
+                icon: '★',
+                subtitle: quest.storyText || 'Ranger mission complete!',
+                durationMs: 4200,
+            });
+        } catch {
+            /* soft */
+        }
+
+        console.log(`✅ Quest complete: ${quest.title}`);
     }
-    
-    /**
-     * Show quest complete popup
-     */
-    private showQuestCompletePopup(quest: Quest): void {
-        const popup = document.createElement('div');
-        popup.className = 'quest-complete-popup';
-        popup.innerHTML = `
-            <div class="quest-popup-content">
-                <div class="quest-popup-title">Quest Complete!</div>
-                <div class="quest-popup-quest-name">${quest.title}</div>
-                ${quest.storyText ? `<div class="quest-popup-story">${quest.storyText}</div>` : ''}
-                <div class="quest-popup-reward">
-                    <span class="reward-icon">💎</span>
-                    <span class="reward-amount">+${quest.reward.gems} Gems</span>
-                </div>
-                <button class="quest-popup-close">Continue</button>
-            </div>
-        `;
-        
-        document.body.appendChild(popup);
-        
-        // Auto-close after 5 seconds or on click
-        const closeBtn = popup.querySelector('.quest-popup-close');
-        const closePopup = () => {
-            popup.remove();
-        };
-        
-        closeBtn?.addEventListener('click', closePopup);
-        setTimeout(closePopup, 5000);
-    }
-    
-    /**
-     * Get all quests
-     */
+
     getQuests(): Quest[] {
         return this.quests;
     }
-    
-    /**
-     * Get active quest
-     */
+
+    getActiveQuests(): Quest[] {
+        return this.quests.filter((q) => !q.completed);
+    }
+
+    /** First incomplete quest (HUD / store helpers). */
     getActiveQuest(): Quest | null {
         return this.quests.find((q) => !q.completed) || null;
     }

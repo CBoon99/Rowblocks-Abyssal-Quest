@@ -362,6 +362,11 @@ const initGame = async () => {
                 } catch {
                     /* soft */
                 }
+                try {
+                    game.getQuestSystem?.()?.updateQuestProgress?.('cleanup', n);
+                } catch {
+                    /* soft */
+                }
                 maybeGiftSwimWin();
                 refreshRangerUI();
                 doAutoSave();
@@ -532,6 +537,14 @@ const initGame = async () => {
         profileSelectUI.show();
 
         // ── 8. Keyboard shortcuts ────────────────────────────────────────
+        const isVisibleOverlay = (el: Element | null): boolean => {
+            if (!el || !(el instanceof HTMLElement)) return false;
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+            if (el.classList.contains('hidden')) return false;
+            return el.offsetParent !== null || style.position === 'fixed';
+        };
+
         document.addEventListener('keydown', (e) => {
             const marinepedia = document.getElementById('marinepedia-container');
             const shop = document.getElementById('customization-shop-container');
@@ -540,13 +553,11 @@ const initGame = async () => {
             const profileEl = document.getElementById('profile-select-container');
 
             const isUIOpen =
-                marinepedia?.style.display === 'block' ||
-                shop?.style.display === 'block' ||
-                levelSelect?.style.display === 'flex' ||
-                levelSelect?.style.display === 'block' ||
-                upgradeShop?.style.display === 'block' ||
-                upgradeShop?.style.display === 'flex' ||
-                (profileEl?.style.display !== 'none' && profileEl?.style.display !== '');
+                isVisibleOverlay(marinepedia) ||
+                isVisibleOverlay(shop) ||
+                isVisibleOverlay(levelSelect) ||
+                isVisibleOverlay(upgradeShop) ||
+                isVisibleOverlay(profileEl);
 
             if (e.key === 'Escape') {
                 // Close overlays first (settings / objectives / pause)
@@ -563,7 +574,22 @@ const initGame = async () => {
                 }
                 if (pauseEl) {
                     // Resume dive — never dump a kid to level select on ESC
-                    document.getElementById('btn-resume')?.dispatchEvent(new Event('click'));
+                    document.getElementById('btn-resume')?.dispatchEvent(
+                        new MouseEvent('click', { bubbles: true })
+                    );
+                    return;
+                }
+                // While diving, Esc always pauses (even if a stale display:'' flag exists)
+                if (game.isRunning) {
+                    if (isUIOpen) {
+                        marinepediaUI.hide();
+                        customizationShopUI.hide();
+                        upgradeShopUI.hide();
+                        levelSelectUI.hide();
+                        profileSelectUI.hide();
+                    }
+                    doAutoSave();
+                    gameHUD.showPauseMenu();
                     return;
                 }
                 if (isUIOpen) {
@@ -571,12 +597,7 @@ const initGame = async () => {
                     customizationShopUI.hide();
                     upgradeShopUI.hide();
                     levelSelectUI.hide();
-                    return;
-                }
-                if (game.isRunning) {
-                    // Pause in place so Resume Dive works
-                    doAutoSave();
-                    gameHUD.showPauseMenu();
+                    profileSelectUI.hide();
                     return;
                 }
                 // Not diving — show main menu, not a random level list dump
@@ -618,30 +639,25 @@ const initGame = async () => {
         };
         updateHUD();
 
-        // ── 10. VR button ────────────────────────────────────────────────
-        if (navigator.xr) {
-            const vrBtn = document.getElementById('vr-btn');
-            if (vrBtn) {
-                vrBtn.style.display = 'inline-block';
-                vrBtn.addEventListener('click', async () => {
-                    try {
-                        await game.enableVR();
-                        const ss = document.getElementById('start-screen');
-                        if (ss) ss.classList.add('hidden');
-                    } catch (err) {
-                        console.error('VR not available:', err);
-                        alert('VR not available on this device');
-                    }
-                });
-            }
+        // ── 10. VR hidden for gift day (no half-finished XR loop) ───────
+        const vrBtn = document.getElementById('vr-btn');
+        if (vrBtn) {
+            vrBtn.style.display = 'none';
+            vrBtn.setAttribute('hidden', 'true');
         }
 
-        // ── 11. Legacy Dive In button (if present) ───────────────────────
+        // ── 11. Legacy Dive In button → same as gift Dive Home Reef ─────
         const startBtn = document.getElementById('start-btn');
         if (startBtn) {
             startBtn.addEventListener('click', () => {
+                try {
+                    (game as any).audioManager?.startAudio?.();
+                    (game as any).audioManager?.playAmbient?.();
+                } catch {
+                    /* soft */
+                }
                 mainMenuUI.hide();
-                levelSelectUI.show();
+                startLevelFlow(GIFT_HOME_LEVEL_ID);
             });
         }
 
