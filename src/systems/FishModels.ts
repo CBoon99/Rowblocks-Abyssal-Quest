@@ -249,53 +249,79 @@ function parrotfishTexture(): THREE.CanvasTexture {
 
 function buildClownfish(): CreatureBuild {
     const group = new THREE.Group();
-    const map = clownfishTexture();
-    const bodyMat = mat(0xff6a00, { map, roughness: 0.45, emissive: 0x331100, emissiveIntensity: 0.15 });
-    const body = fishBody(1.1, 0.55, 0.38, bodyMat);
+    // Ocellaris: bright orange + 3 white rings with black edges (readable at 8m)
+    const orange = mat(0xff6a00, {
+        roughness: 0.42,
+        emissive: 0x441800,
+        emissiveIntensity: 0.22,
+    });
+    const white = mat(0xfffaf5, { roughness: 0.55, emissive: 0x444433, emissiveIntensity: 0.08 });
+    const black = mat(0x111111, { roughness: 0.7 });
+
+    const body = fishBody(1.15, 0.58, 0.4, orange);
     group.add(body);
 
-    const finMat = mat(0xff7a10, { roughness: 0.5, map });
-    const tail = fin(0.35, 0.45, finMat, 'fork');
-    tail.position.set(0, 0, -0.55);
+    // 3 classic vertical white bands (mesh rings — not only texture)
+    for (const z of [0.28, 0.0, -0.28]) {
+        const edge = new THREE.Mesh(
+            new THREE.TorusGeometry(0.22, 0.045, 8, 16),
+            black
+        );
+        edge.rotation.y = Math.PI / 2;
+        edge.position.set(0, 0.02, z);
+        edge.scale.set(1, 1.15, 0.85);
+        group.add(edge);
+        const band = new THREE.Mesh(
+            new THREE.TorusGeometry(0.22, 0.028, 8, 16),
+            white
+        );
+        band.rotation.y = Math.PI / 2;
+        band.position.set(0, 0.02, z);
+        band.scale.set(1, 1.15, 0.85);
+        group.add(band);
+    }
+
+    const finMat = mat(0xff7a10, { roughness: 0.48, emissive: 0x331100, emissiveIntensity: 0.12 });
+    const tail = fin(0.38, 0.48, finMat, 'fork');
+    tail.position.set(0, 0, -0.58);
     tail.rotation.y = Math.PI / 2;
     group.add(tail);
 
-    const dorsal = fin(0.4, 0.28, finMat, 'sail');
-    dorsal.position.set(0, 0.22, 0.05);
+    const dorsal = fin(0.42, 0.3, finMat, 'sail');
+    dorsal.position.set(0, 0.24, 0.05);
     dorsal.rotation.x = -Math.PI / 2;
     dorsal.rotation.z = Math.PI / 2;
     group.add(dorsal);
 
-    const pecL = fin(0.22, 0.16, finMat, 'round');
-    pecL.position.set(0.2, 0, 0.15);
+    const pecL = fin(0.24, 0.18, white, 'round');
+    pecL.position.set(0.22, 0, 0.15);
     pecL.rotation.y = Math.PI / 2;
     pecL.rotation.z = 0.4;
     const pecR = pecL.clone();
-    pecR.position.x = -0.2;
+    pecR.position.x = -0.22;
     pecR.rotation.z = -0.4;
     group.add(pecL, pecR);
 
-    const eL = eye(0.055, 0.03);
-    eL.position.set(0.12, 0.06, 0.42);
-    const eR = eye(0.055, 0.03);
-    eR.position.set(-0.12, 0.06, 0.42);
+    const eL = eye(0.06, 0.032);
+    eL.position.set(0.13, 0.07, 0.44);
+    const eR = eye(0.06, 0.032);
+    eR.position.set(-0.13, 0.07, 0.44);
     group.add(eL, eR);
 
-    // Mouth bump
     const mouth = new THREE.Mesh(
         new THREE.SphereGeometry(0.06, 8, 8),
         mat(0x222222, { roughness: 0.8 })
     );
-    mouth.position.set(0, -0.05, 0.52);
+    mouth.position.set(0, -0.05, 0.54);
     mouth.scale.set(1, 0.6, 0.5);
     group.add(mouth);
 
-    group.scale.setScalar(1.15);
+    group.scale.setScalar(1.35);
     return {
         group,
         mesh: body,
         animParts: [tail, pecL, pecR, dorsal],
-        size: 1.0,
+        size: 1.15,
         swimSpeed: 1.5,
         animMode: 'fish',
     };
@@ -303,45 +329,64 @@ function buildClownfish(): CreatureBuild {
 
 function buildAngelfish(): CreatureBuild {
     const group = new THREE.Group();
-    const map = stripeTexture('#1a4cff', '#ffd700', 5, false);
-    const bodyMat = mat(0x1a6cff, { map, roughness: 0.4, emissive: 0x001133, emissiveIntensity: 0.2 });
-    // Tall disc body
-    const body = new THREE.Mesh(
-        new THREE.SphereGeometry(0.45, 20, 16),
-        bodyMat
-    );
-    body.scale.set(0.35, 1.15, 0.95);
+    // Emperor/queen-style: tall blue disc + bold yellow vertical bars
+    const blue = mat(0x1a5cff, {
+        roughness: 0.38,
+        emissive: 0x001a44,
+        emissiveIntensity: 0.28,
+    });
+    const gold = mat(0xffd000, {
+        roughness: 0.4,
+        emissive: 0x664400,
+        emissiveIntensity: 0.25,
+    });
+
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 22, 18), blue);
+    body.scale.set(0.32, 1.25, 1.0);
     body.castShadow = true;
     group.add(body);
 
-    const finMat = mat(0x2a7cff, { map, roughness: 0.45 });
-    const dorsal = fin(0.55, 0.7, finMat, 'sail');
-    dorsal.position.set(0, 0.55, 0);
+    // Vertical gold bars across disc (species silhouette cue)
+    for (const z of [0.22, 0.05, -0.12, -0.28]) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.95, 0.06), gold);
+        bar.position.set(0, 0.02, z);
+        group.add(bar);
+    }
+
+    const finMat = mat(0x2a70ff, { roughness: 0.42, emissive: 0x001133, emissiveIntensity: 0.15 });
+    const dorsal = fin(0.6, 0.75, finMat, 'sail');
+    dorsal.position.set(0, 0.62, 0);
     dorsal.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
     group.add(dorsal);
 
-    const anal = fin(0.45, 0.55, finMat, 'sail');
-    anal.position.set(0, -0.5, 0);
+    const anal = fin(0.5, 0.6, finMat, 'sail');
+    anal.position.set(0, -0.55, 0);
     anal.rotation.set(Math.PI / 2, 0, Math.PI / 2);
     group.add(anal);
 
-    const tail = fin(0.4, 0.55, finMat, 'fork');
-    tail.position.set(0, 0, -0.55);
+    const tail = fin(0.42, 0.58, gold, 'fork');
+    tail.position.set(0, 0, -0.58);
     tail.rotation.y = Math.PI / 2;
     group.add(tail);
 
-    const eL = eye(0.05, 0.028);
-    eL.position.set(0.12, 0.08, 0.32);
-    const eR = eye(0.05, 0.028);
-    eR.position.set(-0.12, 0.08, 0.32);
+    // Face mask
+    const mask = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), gold);
+    mask.scale.set(0.7, 0.9, 0.55);
+    mask.position.set(0, 0.05, 0.38);
+    group.add(mask);
+
+    const eL = eye(0.055, 0.03);
+    eL.position.set(0.12, 0.1, 0.38);
+    const eR = eye(0.055, 0.03);
+    eR.position.set(-0.12, 0.1, 0.38);
     group.add(eL, eR);
 
-    group.scale.setScalar(1.2);
+    group.scale.setScalar(1.4);
     return {
         group,
         mesh: body,
         animParts: [tail, dorsal, anal],
-        size: 1.2,
+        size: 1.35,
         swimSpeed: 1.2,
         animMode: 'fish',
     };
@@ -349,44 +394,67 @@ function buildAngelfish(): CreatureBuild {
 
 function buildBlueTang(): CreatureBuild {
     const group = new THREE.Group();
-    const map = blueTangTexture();
-    const bodyMat = mat(0x1e90ff, { map, roughness: 0.4, emissive: 0x002244, emissiveIntensity: 0.25 });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 16), bodyMat);
-    body.scale.set(0.32, 1.0, 1.1);
+    // Dory / palette surgeonfish: royal blue body, yellow tail, black face palette
+    const blue = mat(0x1a6cff, {
+        roughness: 0.38,
+        emissive: 0x002266,
+        emissiveIntensity: 0.32,
+    });
+    const yellow = mat(0xffcc00, {
+        roughness: 0.4,
+        emissive: 0x664400,
+        emissiveIntensity: 0.28,
+    });
+    const black = mat(0x0a0a14, { roughness: 0.55 });
+
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 22, 16), blue);
+    body.scale.set(0.3, 1.05, 1.15);
     body.castShadow = true;
     group.add(body);
 
-    const yellow = mat(0xffcc00, { roughness: 0.45, emissive: 0x553300, emissiveIntensity: 0.2 });
-    const tail = fin(0.38, 0.42, yellow, 'fork');
-    tail.position.set(0, 0, -0.55);
+    // Black “palette” face disc (species cue)
+    const face = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 12), black);
+    face.scale.set(0.75, 1.1, 0.7);
+    face.position.set(0, 0.06, 0.32);
+    group.add(face);
+
+    // Bright yellow caudal
+    const tail = fin(0.42, 0.48, yellow, 'fork');
+    tail.position.set(0, 0, -0.58);
     tail.rotation.y = Math.PI / 2;
     group.add(tail);
 
-    const dorsal = fin(0.5, 0.35, mat(0x1e90ff, { map }), 'sail');
-    dorsal.position.set(0, 0.4, 0.05);
+    const dorsal = fin(0.52, 0.38, blue, 'sail');
+    dorsal.position.set(0, 0.42, 0.02);
     dorsal.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
     group.add(dorsal);
 
-    // Surgeon spine hint
+    // Yellow anal fin tip
+    const anal = fin(0.35, 0.22, yellow, 'sail');
+    anal.position.set(0, -0.38, 0.05);
+    anal.rotation.set(Math.PI / 2, 0, Math.PI / 2);
+    group.add(anal);
+
+    // Surgeon spine (white/yellow scalpel mark)
     const spine = new THREE.Mesh(
-        new THREE.BoxGeometry(0.04, 0.08, 0.12),
-        mat(0xffee88, { roughness: 0.3 })
+        new THREE.BoxGeometry(0.05, 0.1, 0.14),
+        mat(0xffee88, { roughness: 0.25, emissive: 0x886600, emissiveIntensity: 0.2 })
     );
-    spine.position.set(0.12, 0, -0.35);
+    spine.position.set(0.14, 0, -0.38);
     group.add(spine);
 
-    const eL = eye(0.045, 0.025);
-    eL.position.set(0.11, 0.1, 0.35);
-    const eR = eye(0.045, 0.025);
-    eR.position.set(-0.11, 0.1, 0.35);
+    const eL = eye(0.05, 0.028);
+    eL.position.set(0.1, 0.12, 0.38);
+    const eR = eye(0.05, 0.028);
+    eR.position.set(-0.1, 0.12, 0.38);
     group.add(eL, eR);
 
-    group.scale.setScalar(1.15);
+    group.scale.setScalar(1.4);
     return {
         group,
         mesh: body,
-        animParts: [tail, dorsal],
-        size: 1.1,
+        animParts: [tail, dorsal, anal],
+        size: 1.25,
         swimSpeed: 1.35,
         animMode: 'fish',
     };
@@ -394,43 +462,70 @@ function buildBlueTang(): CreatureBuild {
 
 function buildParrotfish(): CreatureBuild {
     const group = new THREE.Group();
-    const map = parrotfishTexture();
-    const bodyMat = mat(0x2ecc71, { map, roughness: 0.5, emissive: 0x113311, emissiveIntensity: 0.12 });
-    const body = fishBody(1.4, 0.55, 0.48, bodyMat);
+    // Big parrot: green body, blue head, purple fins, obvious fused beak
+    const green = mat(0x2ecc71, {
+        roughness: 0.48,
+        emissive: 0x0a3318,
+        emissiveIntensity: 0.18,
+    });
+    const blue = mat(0x3498db, {
+        roughness: 0.45,
+        emissive: 0x002244,
+        emissiveIntensity: 0.2,
+    });
+    const purple = mat(0x9b59b6, {
+        roughness: 0.48,
+        emissive: 0x2a1040,
+        emissiveIntensity: 0.18,
+    });
+    const beakMat = mat(0xf5d76e, {
+        roughness: 0.32,
+        metalness: 0.2,
+        emissive: 0x554400,
+        emissiveIntensity: 0.15,
+    });
+
+    const body = fishBody(1.5, 0.6, 0.52, green);
     group.add(body);
 
-    // Beak
-    const beak = new THREE.Mesh(
-        new THREE.ConeGeometry(0.12, 0.22, 8),
-        mat(0xf5d76e, { roughness: 0.35, metalness: 0.15 })
-    );
-    beak.rotation.x = Math.PI / 2;
-    beak.position.set(0, -0.02, 0.62);
-    group.add(beak);
+    // Blue head plate
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 12), blue);
+    head.scale.set(0.95, 0.95, 1.15);
+    head.position.set(0, 0.02, 0.48);
+    group.add(head);
 
-    const finMat = mat(0x9b59b6, { map, roughness: 0.5 });
-    const tail = fin(0.4, 0.4, finMat, 'round');
-    tail.position.set(0, 0, -0.7);
+    // Fused “parrot” beak — unmistakeable
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.28, 10), beakMat);
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, -0.04, 0.72);
+    group.add(beak);
+    const lower = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.16, 8), beakMat);
+    lower.rotation.x = -Math.PI / 2;
+    lower.position.set(0, -0.1, 0.68);
+    group.add(lower);
+
+    const tail = fin(0.45, 0.45, purple, 'round');
+    tail.position.set(0, 0, -0.75);
     tail.rotation.y = Math.PI / 2;
     group.add(tail);
 
-    const dorsal = fin(0.55, 0.25, finMat, 'sail');
-    dorsal.position.set(0, 0.28, 0);
+    const dorsal = fin(0.6, 0.28, purple, 'sail');
+    dorsal.position.set(0, 0.32, 0);
     dorsal.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
     group.add(dorsal);
 
-    const eL = eye(0.05, 0.028);
-    eL.position.set(0.16, 0.08, 0.4);
-    const eR = eye(0.05, 0.028);
-    eR.position.set(-0.16, 0.08, 0.4);
+    const eL = eye(0.055, 0.03);
+    eL.position.set(0.16, 0.1, 0.52);
+    const eR = eye(0.055, 0.03);
+    eR.position.set(-0.16, 0.1, 0.52);
     group.add(eL, eR);
 
-    group.scale.setScalar(1.25);
+    group.scale.setScalar(1.45);
     return {
         group,
         mesh: body,
         animParts: [tail, dorsal],
-        size: 1.3,
+        size: 1.45,
         swimSpeed: 1.1,
         animMode: 'fish',
     };
@@ -1550,7 +1645,9 @@ const GLB_META: Record<
 };
 
 /**
- * Prefer per-species GLB from AssetLibrary; procedural only as last resort.
+ * Prefer species-true procedural builders (readable markings).
+ * Use exact GLB only when present and species is not a “must read” hero.
+ * Never use barramundi tint as a wrong species.
  */
 export function buildCreature(speciesId: string): CreatureBuild {
     const key = speciesId.toLowerCase().replace(/\s+/g, '_');
@@ -1560,30 +1657,54 @@ export function buildCreature(speciesId: string): CreatureBuild {
         animMode: 'fish' as const,
     };
 
-    const lib = AssetLibrary.get();
-    const group = lib.cloneCreature(key, {
-        scale: meta.scale,
-        tint: meta.tint,
-        emissive: meta.emis,
-        emisI: meta.emisI,
-    });
+    // Always use procedural for key gift species (clear silhouette/pattern)
+    const preferProcedural = new Set([
+        'clownfish',
+        'blue_tang',
+        'angelfish',
+        'parrotfish',
+        'butterfly_fish',
+        'mandarin_fish',
+        'shark',
+        'reef_shark',
+        'seaturtle',
+        'sea_turtle',
+        'manta',
+        'manta_ray',
+        'jellyfish',
+        'octopus',
+        'seahorse',
+        'lanternfish',
+        'cleaner_shrimp',
+        'giant_squid',
+    ]);
 
-    if (group) {
-        let mesh: THREE.Mesh | null = null;
-        group.traverse((c) => {
-            if (!mesh && (c as THREE.Mesh).isMesh) mesh = c as THREE.Mesh;
+    if (!preferProcedural.has(key)) {
+        const lib = AssetLibrary.get();
+        const group = lib.cloneCreature(key, {
+            scale: meta.scale,
+            tint: meta.tint,
+            emissive: meta.emis,
+            emisI: meta.emisI,
         });
-        group.name = `creature_${speciesId}_glb`;
-        group.userData.speciesId = speciesId;
-        group.userData.art = 'hero_glb';
-        return {
-            group,
-            mesh: mesh || new THREE.Mesh(),
-            animParts: [group],
-            size: meta.scale,
-            swimSpeed: meta.swimSpeed,
-            animMode: meta.animMode,
-        };
+
+        if (group) {
+            let mesh: THREE.Mesh | null = null;
+            group.traverse((c) => {
+                if (!mesh && (c as THREE.Mesh).isMesh) mesh = c as THREE.Mesh;
+            });
+            group.name = `creature_${speciesId}_glb`;
+            group.userData.speciesId = speciesId;
+            group.userData.art = 'hero_glb';
+            return {
+                group,
+                mesh: mesh || new THREE.Mesh(),
+                animParts: [group],
+                size: meta.scale,
+                swimSpeed: meta.swimSpeed,
+                animMode: meta.animMode,
+            };
+        }
     }
 
     const builder = BUILDERS[key] || BUILDERS[speciesId] || buildClownfish;

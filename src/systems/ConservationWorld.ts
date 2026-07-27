@@ -576,74 +576,148 @@ export class ConservationWorld {
     }
 
     private makeBottle(color: number): THREE.Group {
+        // Clear plastic water bottle — unmistakable silhouette
         const g = new THREE.Group();
-        const body = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.12, 0.14, 0.55, 8),
-            new THREE.MeshStandardMaterial({
-                color,
-                emissive: color,
-                emissiveIntensity: 0.45,
-                metalness: 0.05,
-                roughness: 0.4,
-                transparent: true,
-                opacity: 0.9,
-            })
-        );
+        const plastic = new THREE.MeshStandardMaterial({
+            color: 0xa8e0ff,
+            emissive: 0x4488aa,
+            emissiveIntensity: 0.35,
+            metalness: 0.05,
+            roughness: 0.25,
+            transparent: true,
+            opacity: 0.72,
+        });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.62, 12), plastic);
+        body.position.y = 0.05;
+        const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), plastic);
+        shoulder.scale.set(1, 0.55, 1);
+        shoulder.position.y = 0.38;
         const neck = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.05, 0.08, 0.18, 6),
-            new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                emissive: 0xcccccc,
-                emissiveIntensity: 0.3,
-                roughness: 0.5,
-            })
+            new THREE.CylinderGeometry(0.045, 0.07, 0.16, 8),
+            plastic
         );
-        neck.position.y = 0.35;
-        g.add(body, neck);
-        g.scale.setScalar(1.2);
-        return g;
-    }
-
-    private makeBag(color: number): THREE.Mesh {
-        // Crumpled-ish plane: slightly irregular via scale + rotation
-        const geo = new THREE.PlaneGeometry(0.55, 0.7, 2, 2);
-        const pos = geo.attributes.position as THREE.BufferAttribute;
-        for (let i = 0; i < pos.count; i++) {
-            pos.setZ(i, (Math.random() - 0.5) * 0.12);
-        }
-        pos.needsUpdate = true;
-        geo.computeVertexNormals();
-
-        const mesh = new THREE.Mesh(
-            geo,
+        neck.position.y = 0.52;
+        // Bright cap (species of trash cue)
+        const cap = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.055, 0.055, 0.06, 10),
             new THREE.MeshStandardMaterial({
                 color,
                 emissive: color,
-                emissiveIntensity: 0.35,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.85,
-                roughness: 0.7,
-                metalness: 0.0,
+                emissiveIntensity: 0.65,
+                roughness: 0.4,
             })
         );
-        mesh.rotation.x = -Math.PI / 2 + (Math.random() - 0.5) * 0.5;
-        return mesh;
-    }
-
-    private makeCan(color: number): THREE.Mesh {
-        const mesh = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.14, 0.14, 0.28, 10),
+        cap.position.y = 0.62;
+        // Label wrap
+        const label = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.152, 0.152, 0.22, 12, 1, true),
             new THREE.MeshStandardMaterial({
                 color,
                 emissive: color,
                 emissiveIntensity: 0.5,
-                metalness: 0.6,
-                roughness: 0.35,
+                roughness: 0.55,
+                side: THREE.DoubleSide,
             })
         );
-        mesh.rotation.z = Math.PI / 2 + (Math.random() - 0.5) * 0.3;
-        return mesh;
+        label.position.y = 0.05;
+        g.add(body, shoulder, neck, cap, label);
+        g.scale.setScalar(1.35);
+        return g;
+    }
+
+    private makeBag(color: number): THREE.Group {
+        // Crumpled plastic shopping bag — floating open form
+        const g = new THREE.Group();
+        const bagMat = new THREE.MeshStandardMaterial({
+            color,
+            emissive: color,
+            emissiveIntensity: 0.45,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.88,
+            roughness: 0.65,
+            metalness: 0.0,
+        });
+        // Bag body (flattened box)
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.65, 0.08), bagMat);
+        body.position.y = 0.1;
+        // Handles
+        const handleMat = bagMat.clone();
+        const hL = new THREE.Mesh(
+            new THREE.TorusGeometry(0.12, 0.025, 6, 12, Math.PI),
+            handleMat
+        );
+        hL.position.set(-0.12, 0.48, 0);
+        hL.rotation.z = Math.PI;
+        const hR = hL.clone();
+        hR.position.x = 0.12;
+        // Crumple ridges
+        for (let i = 0; i < 3; i++) {
+            const ridge = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 0.04, 0.02),
+                bagMat
+            );
+            ridge.position.set(0, -0.05 + i * 0.18, 0.05);
+            g.add(ridge);
+        }
+        g.add(body, hL, hR);
+        g.rotation.x = -0.25 + Math.random() * 0.2;
+        g.scale.setScalar(1.4);
+        return g;
+    }
+
+    private makeCan(color: number): THREE.Group {
+        // Soft-drink can with ring-pull
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 0.38, 14),
+            new THREE.MeshStandardMaterial({
+                color,
+                emissive: color,
+                emissiveIntensity: 0.55,
+                metalness: 0.75,
+                roughness: 0.28,
+            })
+        );
+        // Silver top/bottom
+        const lid = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.152, 0.152, 0.03, 14),
+            new THREE.MeshStandardMaterial({
+                color: 0xcccccc,
+                metalness: 0.9,
+                roughness: 0.2,
+                emissive: 0x666666,
+                emissiveIntensity: 0.2,
+            })
+        );
+        lid.position.y = 0.2;
+        const base = lid.clone();
+        base.position.y = -0.2;
+        // Pull tab
+        const tab = new THREE.Mesh(
+            new THREE.TorusGeometry(0.04, 0.012, 6, 10),
+            new THREE.MeshStandardMaterial({
+                color: 0xdddddd,
+                metalness: 0.85,
+                roughness: 0.25,
+            })
+        );
+        tab.position.set(0.04, 0.22, 0);
+        tab.rotation.x = Math.PI / 2;
+        // Brand stripe
+        const stripe = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.155, 0.155, 0.1, 14, 1, true),
+            new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.25,
+                side: THREE.DoubleSide,
+            })
+        );
+        g.add(body, lid, base, tab, stripe);
+        g.rotation.z = Math.PI / 2 + (Math.random() - 0.5) * 0.35;
+        g.scale.setScalar(1.35);
+        return g;
     }
 
     private spawnGhostNets(count: number): void {
@@ -766,30 +840,31 @@ export class ConservationWorld {
     }
 
     private makeDummyFish(): THREE.Group {
+        // Tiny fish silhouette trapped in net (readable, not a cone only)
         const g = new THREE.Group();
-        const colors = [0xff8844, 0x44aaff, 0xff66aa];
+        const colors = [0xff6a00, 0x1e90ff, 0xff66aa, 0x2ecc71];
         const c = colors[Math.floor(Math.random() * colors.length)];
-        const body = new THREE.Mesh(
-            new THREE.ConeGeometry(0.12, 0.35, 6),
-            new THREE.MeshStandardMaterial({
-                color: c,
-                emissive: c,
-                emissiveIntensity: 0.6,
-            })
-        );
-        body.rotation.x = Math.PI / 2;
+        const matB = new THREE.MeshStandardMaterial({
+            color: c,
+            emissive: c,
+            emissiveIntensity: 0.55,
+            roughness: 0.45,
+        });
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), matB);
+        body.scale.set(0.7, 0.85, 1.4);
         const tail = new THREE.Mesh(
-            new THREE.ConeGeometry(0.08, 0.15, 4),
-            new THREE.MeshStandardMaterial({
-                color: c,
-                emissive: c,
-                emissiveIntensity: 0.5,
-            })
+            new THREE.ConeGeometry(0.08, 0.14, 6),
+            matB
         );
         tail.rotation.x = -Math.PI / 2;
-        tail.position.z = -0.2;
-        g.add(body, tail);
-        g.scale.setScalar(0.9 + Math.random() * 0.3);
+        tail.position.z = -0.18;
+        const eye = new THREE.Mesh(
+            new THREE.SphereGeometry(0.025, 6, 6),
+            new THREE.MeshStandardMaterial({ color: 0x111111 })
+        );
+        eye.position.set(0.04, 0.03, 0.1);
+        g.add(body, tail, eye);
+        g.scale.setScalar(0.95 + Math.random() * 0.25);
         return g;
     }
 

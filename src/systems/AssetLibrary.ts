@@ -223,28 +223,9 @@ export class AssetLibrary {
         ]);
         if (neverFallback.has(key)) return null;
 
-        // School fish only → barramundi/goldfish tint
-        const fishy = [
-            'clownfish',
-            'angelfish',
-            'blue_tang',
-            'parrotfish',
-            'lanternfish',
-            'goldfish',
-            'butterfly_fish',
-            'mandarin_fish',
-            'barramundi',
-        ];
-        if (fishy.includes(key)) {
-            return (
-                this.creatureTemplates.get(key) ||
-                this.creatureTemplates.get('barramundi') ||
-                this.creatureTemplates.get('goldfish') ||
-                this.creatureTemplates.get('butterfly_fish') ||
-                this.heroFishTemplate
-            );
-        }
-        return null;
+        // Exact GLB only for school fish — NEVER tint barramundi as clownfish/parrot/etc.
+        // Missing GLB → FishModels procedural (species-true markings).
+        return this.creatureTemplates.get(key) || null;
     }
 
     cloneCreature(
