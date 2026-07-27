@@ -67,6 +67,7 @@ Do not expand scope past that plan’s P0 without Carl sign-off.
 
 ## Changelog
 
+- **2026-07-27** — **Gift-ready package (`e49d8db`):** Jasmine HUD avatar + filled mock icons; free-swim win; chase cam/air fixes; Buddy+VR hidden; pearls-unified shop; `GIFT_NIGHT.md` run sheet; 44 unit tests; hard-smoke green. Party: supervised desktop first; iPad optional after human QA.
 - **2026-07-25** — **Slice A gift ship:** One-tap Dive Home Reef; levels 1–3 only; sequential FirstDiveDirector; pearls-only HUD; Buddy local honesty; win sparkle; README/SHIP truth; smoke multi-port. Plan: `docs/BIRTHDAY_SHIP_PLAN.md`.
 - **2026-07-25** — **Full agent power pass:** Swim physics tidy (water drag, floor/surface, soft shark push, clean range 5.8m). Memory hero meshes upgraded (species-true turtle/manta/shark/jelly). Path litter raised to swim corridor + pulse juice. Home reef env denser (path coral, golden markers, god rays, anemones, wreck). FirstDiveDirector welcome/clean hints. Elder turtle findable + reachable pearl. Birthday pearl card + settings quality live apply. HUD chrome quieter. Build green.
 - **2026-07-17** — **Phase next (all):** Bigger archipelago (7 reefs, WORLD_MAP_EXTENT 160, seafloor 420). DiveBudget + HUD. RangerAlertSystem + HUD. BuddySession + BuddyDiveUI (create/join code, pose sync skeleton, remote diver mesh). Main menu Buddy Dive. Build green.
