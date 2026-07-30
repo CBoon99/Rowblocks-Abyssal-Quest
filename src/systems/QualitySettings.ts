@@ -25,6 +25,7 @@ export interface QualityConfig {
 }
 
 /** Pass 6: keep art direction when effects reduce */
+/** Gift day: calmer reef — heroes readable, not rush-hour traffic */
 const TIERS: Record<QualityTier, QualityConfig> = {
     high: {
         tier: 'high',
@@ -34,15 +35,15 @@ const TIERS: Record<QualityTier, QualityConfig> = {
         shadowMapSize: 2048,
         postOutline: false,
         postBloom: true,
-        postBloomStrength: 0.28, // Memory: don't bleach coral
+        postBloomStrength: 0.18,
         postCaustics: true,
-        terrainSegments: 192,
-        marineSnow: 480, // was confetti
-        fishCount: 22, // fewer ambient — protect hero moments
-        kelpFactor: 1,
-        coralFactor: 1.15,
-        rockFactor: 1,
-        bubblesMax: 160,
+        terrainSegments: 160,
+        marineSnow: 90,
+        fishCount: 6, // ambient only — memory heroes are extra
+        kelpFactor: 0.45,
+        coralFactor: 0.55,
+        rockFactor: 0.55,
+        bubblesMax: 40,
     },
     medium: {
         tier: 'medium',
@@ -52,15 +53,15 @@ const TIERS: Record<QualityTier, QualityConfig> = {
         shadowMapSize: 1024,
         postOutline: false,
         postBloom: false,
-        postBloomStrength: 0.22,
+        postBloomStrength: 0.15,
         postCaustics: true,
-        terrainSegments: 96,
-        marineSnow: 220,
-        fishCount: 14,
-        kelpFactor: 0.55,
-        coralFactor: 0.85, // keep colour density
-        rockFactor: 0.6,
-        bubblesMax: 70,
+        terrainSegments: 80,
+        marineSnow: 50,
+        fishCount: 5,
+        kelpFactor: 0.32,
+        coralFactor: 0.42,
+        rockFactor: 0.38,
+        bubblesMax: 24,
     },
     low: {
         tier: 'low',
@@ -70,15 +71,15 @@ const TIERS: Record<QualityTier, QualityConfig> = {
         shadowMapSize: 512,
         postOutline: false,
         postBloom: false,
-        postBloomStrength: 0.2,
+        postBloomStrength: 0.12,
         postCaustics: false,
         terrainSegments: 48,
-        marineSnow: 120,
-        fishCount: 12,
-        kelpFactor: 0.35,
-        coralFactor: 0.55, // still colourful, fewer meshes
-        rockFactor: 0.4,
-        bubblesMax: 30,
+        marineSnow: 28,
+        fishCount: 4,
+        kelpFactor: 0.22,
+        coralFactor: 0.32,
+        rockFactor: 0.28,
+        bubblesMax: 14,
     },
 };
 

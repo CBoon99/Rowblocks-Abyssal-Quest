@@ -45,27 +45,27 @@ export class OceanEnvironment {
         for (const reef of REEF_ZONES) {
             // Home reef = densest "wow" pocket; others lighter
             // Mock plate #1: denser, colourful reefs (home + wreck especially)
+            // Gift day: open reef, heroes readable — not rush-hour coral traffic
             const scale =
                 reef.id === 'home_reef'
-                    ? 2.1
+                    ? 0.9
                     : reef.id === 'east_garden'
-                      ? 1.45
+                      ? 0.7
                       : reef.id === 'wreck_cove'
-                        ? 1.5
-                        : 1.0;
-            this.createRocks(reef, Math.floor(14 * rockF * scale));
-            this.createCoral(reef, Math.floor(22 * coralF * scale));
-            this.createKelp(reef, Math.floor(16 * kelpF * scale));
+                        ? 0.75
+                        : 0.55;
+            this.createRocks(reef, Math.floor(8 * rockF * scale));
+            this.createCoral(reef, Math.floor(9 * coralF * scale));
+            this.createKelp(reef, Math.floor(6 * kelpF * scale));
             if (reef.id === 'home_reef') {
                 this.createHeroAnemoneGarden(reef);
-                // Stronger god rays on home (still soft — no white-out); scale with rockF as light-fx proxy
-                this.createGodRays(reef, Math.max(6, Math.floor(10 * rockF)), 0.055);
+                this.createGodRays(reef, Math.max(2, Math.floor(3 * rockF)), 0.035);
                 this.createSandPathMarkers(reef);
-                this.createPathFramingCoral(reef, coralF); // Pass 1: dense sides of swim lane
+                this.createPathFramingCoral(reef, coralF * 0.45);
             } else if (reef.id === 'east_garden') {
-                this.createGodRays(reef, Math.max(2, Math.floor(3 * rockF)));
+                this.createGodRays(reef, Math.max(1, Math.floor(2 * rockF)));
             } else if (reef.id === 'wreck_cove') {
-                this.createGodRays(reef, Math.max(2, Math.floor(3 * rockF)));
+                this.createGodRays(reef, Math.max(1, Math.floor(2 * rockF)));
                 this.createShipWreck(reef);
             }
         }
@@ -87,30 +87,27 @@ export class OceanEnvironment {
     }
 
     /**
-     * Pass 1: dense colourful coral walls framing the sandy corridor
-     * (mock plate left/right garden). Density scales with quality coralFactor.
+     * Soft coral garden framing the sandy corridor — gift day: sparse, not neon tunnel.
      */
     private createPathFramingCoral(reef: ReefZone, coralFactor: number = 1): void {
         const colors = this.coralPalette();
         const sides = [-1, 1];
-        // Slight density bump vs baseline 18 — still iPad-safe; multiply by quality
-        const perSide = Math.max(10, Math.floor(22 * coralFactor));
+        // Birthday calm: ~6–8 per side max, no accent clutter
+        const perSide = Math.max(5, Math.floor(8 * coralFactor));
         const step = 20 / Math.max(1, perSide - 1); // span ~20m along +Z
         for (const side of sides) {
             for (let i = 0; i < perSide; i++) {
                 const z = reef.z + 0.4 + i * step;
-                // Stagger depth so walls read as gardens, not a single fence line
                 const depthJitter = (i % 2 === 0 ? 0.35 : -0.15) + Math.random() * 0.4;
                 const x =
                     reef.x +
-                    side * (4.4 + (i % 3) * 0.7 + Math.random() * 0.4 + depthJitter);
+                    side * (4.8 + (i % 3) * 0.5 + Math.random() * 0.35 + depthJitter);
                 const color = colors[(i + (side > 0 ? 4 : 0)) % colors.length];
-                // Punchier emissive so gardens read against navy water
                 const mat = new THREE.MeshStandardMaterial({
                     color,
-                    roughness: 0.48,
-                    metalness: 0.07,
-                    emissive: new THREE.Color(color).multiplyScalar(0.36),
+                    roughness: 0.58,
+                    metalness: 0.04,
+                    emissive: new THREE.Color(color).multiplyScalar(0.14),
                     flatShading: true,
                 });
                 const y = reef.shelfY + 0.05;
@@ -118,26 +115,10 @@ export class OceanEnvironment {
                 else if (i % 3 === 1) this.addBoulderCoral(x, y, z, mat);
                 else this.addPlateCoral(x, y, z, mat);
                 const last = this.root.children[this.root.children.length - 1];
-                if (last) last.scale.multiplyScalar(1.35 + (i % 4) * 0.06);
-                // Occasional secondary accent coral slightly inward for garden depth
-                if (i % 4 === 1) {
-                    const accentColor = colors[(i + 5) % colors.length];
-                    const accentMat = new THREE.MeshStandardMaterial({
-                        color: accentColor,
-                        roughness: 0.5,
-                        metalness: 0.06,
-                        emissive: new THREE.Color(accentColor).multiplyScalar(0.32),
-                        flatShading: true,
-                    });
-                    const ax = reef.x + side * (3.6 + Math.random() * 0.35);
-                    const az = z + (Math.random() - 0.5) * 0.6;
-                    this.addBoulderCoral(ax, y, az, accentMat);
-                    const accent = this.root.children[this.root.children.length - 1];
-                    if (accent) accent.scale.multiplyScalar(0.85);
-                }
+                if (last) last.scale.multiplyScalar(1.15 + (i % 4) * 0.05);
             }
         }
-        console.log('🪸 Path-framing coral walls (jewel gardens)');
+        console.log('🪸 Path-framing coral (calm gardens)');
     }
 
     /**

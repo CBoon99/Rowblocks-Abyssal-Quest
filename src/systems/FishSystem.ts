@@ -169,11 +169,12 @@ export class FishSystem {
         console.log('🐟 FishSystem.init() — hero GLB + species-true creatures');
         try {
             await AssetLibrary.get().loadAll();
+            // Ambient school only — memory heroes + elder spawn separately
             const count =
                 (typeof window !== 'undefined' &&
                     (window as any).qualityConfig?.fishCount) ??
-                40;
-            this.createFishSchool(count);
+                8;
+            this.createFishSchool(Math.min(count, 10));
             let glb = 0;
             const counts: Record<string, number> = {};
             for (const f of this.fishes) {

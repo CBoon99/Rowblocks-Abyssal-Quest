@@ -291,7 +291,7 @@ export class Game {
                     // Bubble SFX + store CP (ConservationSystem can mirror via serialize later)
                     this.conservationWorld.onCollect = (event) => {
                         try {
-                            this.bubblesSystem?.emitBubbles?.(event.position, 8);
+                            this.bubblesSystem?.emitBubbles?.(event.position, 3);
                         } catch {
                             /* optional particles */
                         }
@@ -318,7 +318,7 @@ export class Game {
                     };
                     this.conservationWorld.onFree = (event) => {
                         try {
-                            this.bubblesSystem?.emitBubbles?.(event.position, 12);
+                            this.bubblesSystem?.emitBubbles?.(event.position, 4);
                         } catch {
                             /* optional particles */
                         }

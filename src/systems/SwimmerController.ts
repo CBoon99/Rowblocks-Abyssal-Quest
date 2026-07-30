@@ -546,7 +546,10 @@ export class SwimmerController {
                             new THREE.Euler(0, this.euler.y, 0)
                         );
                         trailPos.add(backTank);
-                        bubbles.emitBubbles(trailPos, moveSpeed > 1.2 ? 2 : 1);
+                        // Quiet trail — avoid bubble traffic
+                        if (moveSpeed > 0.8) {
+                            bubbles.emitBubbles(trailPos, 1);
+                        }
                     }
                 } catch {
                     /* soft */

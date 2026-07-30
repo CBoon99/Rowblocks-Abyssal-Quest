@@ -14,7 +14,8 @@ export class AudioManager {
     private underwaterAudio: UnderwaterAudio | null = null;
     /** Master mute — persists across reloads when possible. */
     private muted = false;
-    private ambientVolumeBeforeMute = 0.1;
+    /** Soft noise bed only — old 60Hz sine was unbearable as "ocean" */
+    private ambientVolumeBeforeMute = 0.022;
     
     constructor(private camera: THREE.PerspectiveCamera) {
         // Create audio listener attached to camera
@@ -68,11 +69,18 @@ export class AudioManager {
             this.initAudioContext();
         }
 
-        // Restore mute preference before any sound starts
+        // Mute by default on first visit (gift day — unbearable procedural tones)
+        // If user has ever toggled, respect their saved choice.
         try {
-            this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
+            const saved = localStorage.getItem(MUTE_STORAGE_KEY);
+            if (saved === null) {
+                this.muted = true;
+                localStorage.setItem(MUTE_STORAGE_KEY, '1');
+            } else {
+                this.muted = saved === '1';
+            }
         } catch {
-            this.muted = false;
+            this.muted = true;
         }
         
         // Initialize underwater audio system if context is available
@@ -168,30 +176,55 @@ export class AudioManager {
         }
         
         try {
-            // Create oscillator for ambient drone
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
-            const filter = this.audioContext.createBiquadFilter();
-            
+            // Soft underwater bed: filtered noise + very quiet low tone (NOT a pure 60Hz buzz)
+            const ctx = this.audioContext;
+            const master = ctx.createGain();
+            master.gain.value = this.muted ? 0 : this.ambientVolumeBeforeMute;
+            master.connect(ctx.destination);
+
+            // Brown-ish noise buffer (looping)
+            const seconds = 3;
+            const buffer = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            let last = 0;
+            for (let i = 0; i < data.length; i++) {
+                const white = Math.random() * 2 - 1;
+                last = (last + 0.02 * white) / 1.02;
+                data[i] = last * 3.5;
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            noise.loop = true;
+            const noiseFilter = ctx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = 380;
+            noiseFilter.Q.value = 0.7;
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.value = 0.55;
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(master);
+            noise.start();
+
+            // Barely-there deep tone (not a phone buzz)
+            const oscillator = ctx.createOscillator();
             oscillator.type = 'sine';
-            oscillator.frequency.value = 60; // Low frequency drone
-            
-            filter.type = 'lowpass';
-            filter.frequency.value = 500;
-            
-            gainNode.gain.value = this.muted ? 0 : this.ambientVolumeBeforeMute;
-            
-            oscillator.connect(filter);
-            filter.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
-            
+            oscillator.frequency.value = 48;
+            const toneFilter = ctx.createBiquadFilter();
+            toneFilter.type = 'lowpass';
+            toneFilter.frequency.value = 120;
+            const toneGain = ctx.createGain();
+            toneGain.gain.value = 0.12;
+            oscillator.connect(toneFilter);
+            toneFilter.connect(toneGain);
+            toneGain.connect(master);
             oscillator.start();
-            
-            // Store reference for cleanup
+
             (this as any)._ambientOscillator = oscillator;
-            (this as any)._ambientGain = gainNode;
-            
-            console.log('✅ Procedural ambient sound started');
+            (this as any)._ambientNoise = noise;
+            (this as any)._ambientGain = master;
+
+            console.log('✅ Soft underwater ambient started (noise bed)');
         } catch (error) {
             console.warn('⚠️ Failed to generate procedural ambient:', error);
         }
@@ -363,7 +396,7 @@ export class AudioManager {
         
         for (let i = 0; i < data.length; i++) {
             const t = i / sampleRate;
-            data[i] = Math.sin(t * 1000 * Math.PI * 2) * Math.exp(-t * 10) * 0.4;
+            data[i] = Math.sin(t * 880 * Math.PI * 2) * Math.exp(-t * 12) * 0.18;
         }
         
         this.playBuffer(buffer);
@@ -380,7 +413,7 @@ export class AudioManager {
             const t = i / sampleRate;
             const a = Math.sin(t * 660 * Math.PI * 2) * Math.exp(-t * 8);
             const b = Math.sin(t * 880 * Math.PI * 2) * Math.exp(-t * 10) * 0.5;
-            data[i] = (a + b) * 0.35;
+            data[i] = (a + b) * 0.16;
         }
         this.playBuffer(buffer);
     }
@@ -396,7 +429,7 @@ export class AudioManager {
             const t = i / sampleRate;
             const whoosh = (Math.random() * 2 - 1) * Math.exp(-t * 6) * 0.25;
             const rise = Math.sin(t * (400 + t * 600) * Math.PI * 2) * Math.exp(-t * 3) * 0.3;
-            data[i] = whoosh + rise;
+            data[i] = (whoosh + rise) * 0.55;
         }
         this.playBuffer(buffer);
     }
@@ -412,7 +445,7 @@ export class AudioManager {
         
         for (let i = 0; i < data.length; i++) {
             const t = i / sampleRate;
-            data[i] = (Math.random() - 0.5) * Math.exp(-t * 20) * 0.2;
+            data[i] = (Math.random() - 0.5) * Math.exp(-t * 22) * 0.08;
         }
         
         this.playBuffer(buffer);
@@ -430,7 +463,7 @@ export class AudioManager {
         for (let i = 0; i < data.length; i++) {
             const t = i / sampleRate;
             const freq = 800 + t * 400; // Rising frequency
-            data[i] = Math.sin(t * freq * Math.PI * 2) * Math.exp(-t * 3) * 0.3;
+            data[i] = Math.sin(t * freq * Math.PI * 2) * Math.exp(-t * 4) * 0.12;
         }
         
         this.playBuffer(buffer);
@@ -672,8 +705,21 @@ export class AudioManager {
         });
         this.positionalSounds.clear();
         
-        if ((this as any)._ambientOscillator) {
-            (this as any)._ambientOscillator.stop();
+        try {
+            if ((this as any)._ambientOscillator) {
+                (this as any)._ambientOscillator.stop();
+            }
+            if ((this as any)._ambientNoise) {
+                (this as any)._ambientNoise.stop();
+            }
+            if ((this as any)._ambientGain) {
+                (this as any)._ambientGain.disconnect();
+            }
+        } catch {
+            /* soft */
         }
+        (this as any)._ambientOscillator = null;
+        (this as any)._ambientNoise = null;
+        (this as any)._ambientGain = null;
     }
 }

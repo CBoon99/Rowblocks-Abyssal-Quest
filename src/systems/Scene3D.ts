@@ -387,13 +387,14 @@ export class Scene3D {
     }
 
     private createBioluminescentLights(): void {
-        for (let i = 0; i < 8; i++) {
-            const light = new THREE.PointLight(0x66e0ff, 0.35, 28);
-            const a = Math.random() * Math.PI * 2;
-            const r = 8 + Math.random() * 30;
+        // Gift day: 3 soft accents, not a disco
+        for (let i = 0; i < 3; i++) {
+            const light = new THREE.PointLight(0x66e0ff, 0.18, 22);
+            const a = (i / 3) * Math.PI * 2 + 0.4;
+            const r = 12 + i * 6;
             light.position.set(
                 Math.cos(a) * r,
-                SHELF_Y + 1 + Math.random() * 8,
+                SHELF_Y + 2 + i * 1.5,
                 Math.sin(a) * r
             );
             this.scene.add(light);
@@ -403,18 +404,14 @@ export class Scene3D {
     }
 
     private createUnderwaterFillLights(): void {
-        // Path + hero marks get warm/cyan fills so moments read
+        // Sparse path fills only — heroes still readable, no light soup
         const fills: Array<[number, number, number, number]> = [
-            [0, 5, 8, 0.55], // golden path centre
-            [-6, 4, 10, 0.4], // turtle stage
-            [10, 4, 13, 0.35], // shark profile
-            [5, 5, 9, 0.4], // jelly lanterns
-            [12, 4, -8, 0.22],
-            [-10, 5, 10, 0.28],
-            [0, 12, 0, 0.22]
+            [0, 5, 8, 0.32], // golden path centre
+            [-6, 4, 10, 0.22], // turtle stage
+            [5, 5, 9, 0.2], // mid path
         ];
         for (const [x, y, z, intensity] of fills) {
-            const l = new THREE.PointLight(0x55ccee, intensity, 45);
+            const l = new THREE.PointLight(0x55ccee, intensity, 38);
             l.position.set(x, y, z);
             this.scene.add(l);
             this.underwaterFills.push(l);

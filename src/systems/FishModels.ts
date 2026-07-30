@@ -1645,8 +1645,8 @@ const GLB_META: Record<
 };
 
 /**
- * Prefer species-true procedural builders (readable markings).
- * Use exact GLB only when present and species is not a “must read” hero.
+ * Prefer real GLB meshes when present (clownfish, tang, angel, etc.).
+ * Procedural only for species with no GLB (turtle, manta, shark, jelly…).
  * Never use barramundi tint as a wrong species.
  */
 export function buildCreature(speciesId: string): CreatureBuild {
@@ -1657,14 +1657,9 @@ export function buildCreature(speciesId: string): CreatureBuild {
         animMode: 'fish' as const,
     };
 
-    // Always use procedural for key gift species (clear silhouette/pattern)
-    const preferProcedural = new Set([
-        'clownfish',
-        'blue_tang',
-        'angelfish',
+    // No GLB in public/models/creatures — keep procedural for these only
+    const noGlbAvailable = new Set([
         'parrotfish',
-        'butterfly_fish',
-        'mandarin_fish',
         'shark',
         'reef_shark',
         'seaturtle',
@@ -1679,13 +1674,14 @@ export function buildCreature(speciesId: string): CreatureBuild {
         'giant_squid',
     ]);
 
-    if (!preferProcedural.has(key)) {
+    // Gift day: use real models for school species that have GLBs
+    if (!noGlbAvailable.has(key)) {
         const lib = AssetLibrary.get();
         const group = lib.cloneCreature(key, {
             scale: meta.scale,
             tint: meta.tint,
             emissive: meta.emis,
-            emisI: meta.emisI,
+            emisI: Math.min(meta.emisI ?? 0.12, 0.18),
         });
 
         if (group) {

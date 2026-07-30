@@ -82,9 +82,9 @@ export class ConservationWorld {
 
     async init(): Promise<void> {
         this.scene.add(this.root);
-        // Mock plate: visible trash near home + scattered
-        this.spawnLitter(10 + Math.floor(Math.random() * 4));
-        this.spawnGhostNets(3);
+        // Gift day: path trash is the hero; sparse world litter (not a junkyard)
+        this.spawnLitter(4);
+        this.spawnGhostNets(1);
         this.spawnHomeReefDemoTrash();
         console.log(
             `♻️ ConservationWorld ready: ${this.litter.length} litter, ${this.nets.length} ghost nets`
@@ -134,29 +134,12 @@ export class ConservationWorld {
     update(dt: number): void {
         this.time += dt;
 
-        // Gentle bob on remaining litter; home-path items pulse (scale + light) to "call" player
+        // Gentle bob only — no scale/light pulse (was rush-hour strobes)
         for (const item of this.litter) {
-            const phase = this.time * 2.4 + item.position.x * 0.7 + item.position.z * 0.3;
-            const bobAmp = item.homePath ? 0.14 : 0.05;
-            const bob = Math.sin(this.time * 1.5 + item.position.x) * bobAmp;
+            const bobAmp = item.homePath ? 0.06 : 0.04;
+            const bob = Math.sin(this.time * 1.2 + item.position.x) * bobAmp;
             item.mesh.position.y = item.position.y + bob;
-            item.mesh.rotation.y += dt * (item.homePath ? 0.55 : 0.3);
-
-            if (item.homePath) {
-                const base = item.baseScale ?? 1;
-                const pulse = 1 + Math.sin(phase) * 0.14;
-                item.mesh.scale.setScalar(base * pulse);
-
-                // Bob PointLight intensity so trash reads from SPAWN corridor
-                const lightPulse = 0.5 + 0.5 * Math.sin(phase * 1.15);
-                item.mesh.traverse((obj) => {
-                    const light = obj as THREE.PointLight;
-                    if (light.isPointLight) {
-                        const baseI = (light.userData.baseIntensity as number) ?? 1.1;
-                        light.intensity = baseI * (0.75 + 0.45 * lightPulse);
-                    }
-                });
-            }
+            item.mesh.rotation.y += dt * (item.homePath ? 0.25 : 0.2);
         }
 
         // Collect flash juice fade-out
@@ -405,21 +388,15 @@ export class ConservationWorld {
         }
     }
 
-    /** Guaranteed trash near spawn — mock plate “first clean” moment */
+    /** Path trash for first clean — gift day: 3 readable items, no strobe lights */
     private spawnHomeReefDemoTrash(): void {
-        // Swim corridor (SPAWN ~y=2.4): litter sits readable mid-water, slightly above sand (~-2.5)
-        // Y range ~0.4–1.2 so trash is on the golden path, not buried below camera
+        // Swim corridor: a few clear cans/bottles, not a hazard course
         const spots: [number, number, number][] = [
-            [1.8, 0.55, 5.5],
-            [-1.5, 0.85, 6.5],
-            [2.2, 0.45, 8],
-            [-2.0, 1.05, 9],
-            [1.2, 0.65, 11],
-            [-1.8, 1.15, 12.5],
-            [2.5, 0.5, 14],
-            [0.5, 0.75, 7.2],
+            [1.8, 0.55, 6.0],
+            [-1.6, 0.85, 9.5],
+            [1.4, 0.65, 13.0],
         ];
-        const colors = [0xffee00, 0xffffff, 0xff2244, 0x33ccff];
+        const colors = [0xe8e8e8, 0x44aadd, 0xcc3344];
         spots.forEach((pos, i) => {
             const color = colors[i % colors.length];
             const mesh =
@@ -429,29 +406,19 @@ export class ConservationWorld {
                       ? this.makeBottle(color)
                       : this.makeBag(color);
             mesh.position.set(pos[0], pos[1], pos[2]);
-            // Large + readable on first swim (scale ~1.8–2.2)
-            const scaleMul = 1.85 + (i % 4) * 0.1;
-            mesh.scale.multiplyScalar(scaleMul);
-            this.boostLitterEmissive(mesh, 0.72);
+            mesh.scale.multiplyScalar(1.55);
+            this.boostLitterEmissive(mesh, 0.28);
 
             const id = this.nextId('litter');
             mesh.userData = { kind: 'litter', id, homePath: true };
 
-            // Strong glow so trash “calls” from SPAWN corridor
-            const lightIntensity = 0.95 + (i % 3) * 0.15; // 0.95–1.25
-            const lightDist = 5.5 + (i % 3) * 0.5; // 5.5–6.5
-            const glow = new THREE.PointLight(color, lightIntensity, lightDist);
-            glow.position.set(0, 0.3, 0);
-            glow.userData.baseIntensity = lightIntensity;
-            mesh.add(glow);
-
-            // Ground ring (under item, slightly larger for path readability)
+            // Soft ground ring only — no PointLight (was emergency-strobe clutter)
             const ring = new THREE.Mesh(
-                new THREE.RingGeometry(0.42, 0.62, 20),
+                new THREE.RingGeometry(0.32, 0.48, 16),
                 new THREE.MeshBasicMaterial({
-                    color: 0xffd166,
+                    color: 0xc9a84c,
                     transparent: true,
-                    opacity: 0.7,
+                    opacity: 0.35,
                     side: THREE.DoubleSide,
                     depthWrite: false,
                 })
@@ -470,11 +437,10 @@ export class ConservationWorld {
             });
         });
 
-        // Ghost net on path right — swimmable Y, larger, slightly emissive
+        // One ghost net — readable, no spotlight
         const netId = this.nextId('net');
         const net = this.makeNetStructure();
-        this.boostLitterEmissive(net, 0.45);
-        // Tint net materials a bit brighter so it reads mid-water
+        this.boostLitterEmissive(net, 0.22);
         net.traverse((obj) => {
             const mesh = obj as THREE.Mesh;
             if (mesh.isMesh && mesh.material) {
@@ -482,18 +448,15 @@ export class ConservationWorld {
                 for (const m of mats) {
                     const mat = m as THREE.MeshStandardMaterial;
                     if ('emissive' in mat) {
-                        mat.emissive = new THREE.Color(0x445566);
-                        mat.emissiveIntensity = Math.max(mat.emissiveIntensity ?? 0, 0.4);
+                        mat.emissive = new THREE.Color(0x334455);
+                        mat.emissiveIntensity = Math.max(mat.emissiveIntensity ?? 0, 0.22);
                         mat.needsUpdate = true;
                     }
                 }
             }
         });
-        net.scale.multiplyScalar(2.0);
-        net.position.set(4.5, 2.0, 10); // ~1.5–2.5 swim band
-        const netGlow = new THREE.PointLight(0x88aacc, 0.85, 6);
-        netGlow.position.set(0, 0.2, 0);
-        net.add(netGlow);
+        net.scale.multiplyScalar(1.7);
+        net.position.set(4.5, 2.0, 10);
         net.userData = { kind: 'ghost_net', id: netId, freed: false };
         this.root.add(net);
         this.nets.push({
