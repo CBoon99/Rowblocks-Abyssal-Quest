@@ -44,7 +44,8 @@ export type WildlifeEvent =
     | { type: 'birthday_pearl'; message: string }
     | { type: 'remembers_you'; line: string; icon: string }
     | { type: 'reef_gathers'; reefName: string }
-    | { type: 'memory_moment'; id: string; line: string };
+    | { type: 'memory_moment'; id: string; line: string }
+    | { type: 'body_bump'; dir: THREE.Vector3; strength: number };
 
 export interface Fish {
     mesh: THREE.Mesh;
@@ -679,6 +680,7 @@ export class FishSystem {
                 const bs = fish.baseScale || 1;
                 fish.group.scale.setScalar(bs);
                 animateCreature(fish.build, fish.swimPhase, deltaTime);
+                this.resolveBodyBump(fish, cameraPosition);
                 continue;
             }
 
@@ -1020,6 +1022,7 @@ export class FishSystem {
             }
 
             fish.group.position.copy(fish.position);
+            this.resolveBodyBump(fish, cameraPosition);
 
             // Face swim direction — OR face Jasmine when watching / gathering
             const facePlayer =
@@ -1112,6 +1115,49 @@ export class FishSystem {
                 f.mood = trustToState(f.trust, false, false);
             }
         }
+    }
+
+    /** Same idea as shark respect / school separation: spheres, not new physics. */
+    private fishBodyRadius(fish: Fish): number {
+        const id = fish.speciesId;
+        if (id === 'manta') return 1.55;
+        if (id === 'shark' || id === 'reef_shark') return 1.1;
+        if (id === 'seaturtle') return 1.0;
+        if (id === 'giant_squid') return 1.35;
+        if (id === 'jellyfish') return 0.65;
+        return Math.max(0.36, Math.min(0.95, 0.3 + (fish.size || 1) * 0.28));
+    }
+
+    /**
+     * Keep fish from swimming through Jasmine. Fish slide off; she gets a soft bump
+     * via the existing applySoftPush path (sharks already use respectRadius).
+     */
+    private resolveBodyBump(fish: Fish, diver: THREE.Vector3): void {
+        const DIVER_R = 0.55;
+        const r = this.fishBodyRadius(fish) + DIVER_R;
+        const dx = fish.position.x - diver.x;
+        const dy = fish.position.y - diver.y;
+        const dz = fish.position.z - diver.z;
+        const d = Math.hypot(dx, dy, dz);
+        if (d >= r || d < 1e-4) return;
+        const nx = dx / d;
+        const ny = dy / d;
+        const nz = dz / d;
+        const pen = r - d;
+        fish.position.x += nx * pen * 0.75;
+        fish.position.y += ny * pen * 0.4;
+        fish.position.z += nz * pen * 0.75;
+        fish.velocity.x += nx * 1.35;
+        fish.velocity.y += ny * 0.35;
+        fish.velocity.z += nz * 1.35;
+        fish.group.position.copy(fish.position);
+        const p = getPersonality(fish.speciesId);
+        if (p.respectRadius > 0) return;
+        this.events.push({
+            type: 'body_bump',
+            dir: new THREE.Vector3(-nx, 0, -nz),
+            strength: Math.min(1.5, 0.35 + pen * 1.8),
+        });
     }
 
     private computeSeparation(fish: Fish, distance: number): THREE.Vector3 {

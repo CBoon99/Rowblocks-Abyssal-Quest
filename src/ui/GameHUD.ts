@@ -154,7 +154,7 @@ export class GameHUD {
               <nav class="aq-rail" aria-label="Dive menu">
                 <button type="button" class="aq-rail-btn" data-action="marinepedia" title="Marinepedia">
                   <span class="aq-rail-ico">${ICONS.book}</span>
-                  <span class="aq-rail-lbl">MARINEPEDIA</span>
+                  <span class="aq-rail-lbl">FISH</span>
                 </button>
                 <button type="button" class="aq-rail-btn" data-action="map" title="Map">
                   <span class="aq-rail-ico">${ICONS.mapPin}</span>

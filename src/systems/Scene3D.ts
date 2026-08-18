@@ -566,6 +566,10 @@ export class Scene3D {
         }
     }
 
+    getPropBumps(): Array<{ x: number; y: number; z: number; r: number }> {
+        return this.oceanEnv?.getBumps() ?? [];
+    }
+
     private createCausticsProjector(): void {
         const size = 512;
         const canvas = document.createElement('canvas');

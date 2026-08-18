@@ -76,7 +76,7 @@ export class EducationSystem {
             return {
                 isNew: false,
                 species: null,
-                toastText: `Unknown creature spotted at ${Math.round(depth)}m…`,
+                toastText: 'Unknown creature spotted…',
                 card: null,
             };
         }
@@ -147,16 +147,14 @@ export class EducationSystem {
     private buildNewDiscoveryToast(card: SpeciesCard, depth: number): string {
         const banner = RARITY_TOAST[String(card.rarity)] || RARITY_TOAST.common;
         const fact = this.shortFunFact(card);
-        const depthBit = Number.isFinite(depth) ? ` at ${Math.round(depth)}m` : '';
-        if (fact) {
-            return `${banner} ${card.emoji} ${card.name}${depthBit}! ${fact}`;
-        }
-        return `${banner} ${card.emoji} ${card.name}${depthBit}! Added to Marinepedia.`;
+        // Title only — Game.ts adds one short fact as subtitle. Skip 0m (looks broken).
+        const depthBit = Number.isFinite(depth) && depth >= 2 ? ` · ${Math.round(depth)}m` : '';
+        return `${banner} ${card.name}${depthBit}`;
     }
 
     private buildRepeatToast(card: SpeciesCard, depth: number): string {
-        const depthBit = Number.isFinite(depth) ? ` at ${Math.round(depth)}m` : '';
-        return `${card.emoji} ${card.name} spotted again${depthBit}.`;
+        const depthBit = Number.isFinite(depth) && depth >= 2 ? ` · ${Math.round(depth)}m` : '';
+        return `${card.emoji} ${card.name} spotted again${depthBit}`;
     }
 
     /** Trim fun fact to a toast-friendly length. */

@@ -614,6 +614,34 @@ export class SwimmerController {
         this.physicsBody.position.x += d.x * 0.014;
         this.physicsBody.position.z += d.z * 0.014;
     }
+
+    /**
+     * Slide off static reef props (rocks / coral / wreck). Same soft-push as wildlife.
+     * Sphere list comes from OceanEnvironment — no extra Cannon bodies.
+     */
+    resolvePropBumps(bumps: Array<{ x: number; y: number; z: number; r: number }>): void {
+        if (!bumps?.length) return;
+        const DIVER_R = 0.55;
+        const p = this.physicsBody.position;
+        for (let i = 0; i < bumps.length; i++) {
+            const b = bumps[i];
+            const dx = p.x - b.x;
+            const dy = p.y - b.y;
+            const dz = p.z - b.z;
+            const min = b.r + DIVER_R;
+            const d = Math.hypot(dx, dy, dz);
+            if (d >= min || d < 1e-4) continue;
+            const nx = dx / d;
+            const nz = dz / d;
+            const pen = min - d;
+            p.x += nx * pen * 0.55;
+            p.z += nz * pen * 0.55;
+            this.desiredVel.x += nx * pen * 1.1;
+            this.desiredVel.z += nz * pen * 1.1;
+            this.physicsBody.velocity.x += nx * pen * 0.8;
+            this.physicsBody.velocity.z += nz * pen * 0.8;
+        }
+    }
     
     getDirection(): THREE.Vector3 {
         // Use look yaw/pitch, not camera (camera is chase-cam and may differ)

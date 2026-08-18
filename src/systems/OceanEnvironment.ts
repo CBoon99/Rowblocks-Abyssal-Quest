@@ -7,6 +7,7 @@ import { AssetLibrary } from './AssetLibrary';
  */
 export class OceanEnvironment {
     private root: THREE.Group;
+    private bumps: Array<{ x: number; y: number; z: number; r: number }> = [];
     private kelpBlades: Array<{
         mesh: THREE.Object3D;
         phase: number;
@@ -35,6 +36,7 @@ export class OceanEnvironment {
         }
         this.kelpBlades = [];
         this.godRays = [];
+        this.bumps = [];
 
         const qc =
             typeof window !== 'undefined' ? (window as any).qualityConfig : null;
@@ -75,6 +77,14 @@ export class OceanEnvironment {
         console.log(
             `🏝️ OceanEnvironment: mock-plate denser reefs on ${REEF_ZONES.length} zones`
         );
+    }
+
+    getBumps(): Array<{ x: number; y: number; z: number; r: number }> {
+        return this.bumps;
+    }
+
+    private addBump(x: number, y: number, z: number, r: number): void {
+        this.bumps.push({ x, y, z, r });
     }
 
     /** Bright multicolour coral palette — mock plate */
@@ -307,6 +317,7 @@ export class OceanEnvironment {
             }
         });
         this.root.add(g);
+        this.addBump(g.position.x, g.position.y + 1.4, g.position.z, 2.6);
     }
 
     private createShipWreck(reef: ReefZone): void {
@@ -365,6 +376,12 @@ export class OceanEnvironment {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             this.root.add(mesh);
+            this.addBump(
+                mesh.position.x,
+                mesh.position.y,
+                mesh.position.z,
+                Math.max(0.45, Math.max(sx, sz) * 0.48)
+            );
         }
     }
 
@@ -435,6 +452,7 @@ export class OceanEnvironment {
         group.position.set(x, y, z);
         group.rotation.y = Math.random() * Math.PI * 2;
         this.root.add(group);
+        this.addBump(x, y + 0.6, z, 0.55);
     }
 
     private addBoulderCoral(
@@ -460,6 +478,7 @@ export class OceanEnvironment {
         }
         group.position.set(x, y, z);
         this.root.add(group);
+        this.addBump(x, y + 0.4, z, 0.7);
     }
 
     private addPlateCoral(
@@ -485,6 +504,7 @@ export class OceanEnvironment {
         group.add(plate);
         group.position.set(x, y, z);
         this.root.add(group);
+        this.addBump(x, y + 0.4, z, 0.65);
     }
 
     private createKelp(reef: ReefZone, count: number): void {
@@ -594,6 +614,7 @@ export class OceanEnvironment {
             group.scale.setScalar(s);
             group.position.set(p.x, reef.shelfY, p.z);
             this.root.add(group);
+            this.addBump(p.x, reef.shelfY + 0.7, p.z, 0.6);
         }
         // Giant table coral centerpiece near origin of home reef
         const tableMat = new THREE.MeshStandardMaterial({
@@ -617,6 +638,7 @@ export class OceanEnvironment {
         top.position.y = 1.5;
         table.add(pillar, top);
         table.position.set(reef.x + 3, reef.shelfY, reef.z - 2);
+        this.addBump(table.position.x, table.position.y + 1.1, table.position.z, 1.7);
         table.traverse((c) => {
             if ((c as THREE.Mesh).isMesh) {
                 (c as THREE.Mesh).castShadow = true;

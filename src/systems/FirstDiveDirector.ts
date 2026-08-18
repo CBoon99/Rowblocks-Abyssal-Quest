@@ -10,6 +10,8 @@
  *  4 explore  → rest of reef / optional pearl
  */
 
+import { isTouchPrimary } from './QualitySettings';
+
 export type FirstDivePhase =
     | 'welcome'
     | 'turtle'
@@ -17,6 +19,14 @@ export type FirstDivePhase =
     | 'free'
     | 'explore'
     | 'done';
+
+function cleanHow(): string {
+    try {
+        return isTouchPrimary() ? 'tap Clean' : 'press Clean (or F)';
+    } catch {
+        return 'press Clean (or F)';
+    }
+}
 
 export class FirstDiveDirector {
     private t = 0;
@@ -53,7 +63,7 @@ export class FirstDiveDirector {
                 this.advance('free');
                 this.setObjective(
                     'GHOST NET',
-                    'See a net with fish? Swim close and press Clean (F).'
+                    `See a net with fish? Swim close and ${cleanHow()}.`
                 );
             }
         }
@@ -93,7 +103,7 @@ export class FirstDiveDirector {
             this.advance('clean');
             this.setObjective(
                 'CLEAN',
-                'Glowing trash on the path — press Clean (or F).'
+                `Glowing trash on the path — ${cleanHow()}.`
             );
             try {
                 (window as any).DiscoveryToast?.show?.('She came to see you', {
@@ -162,7 +172,7 @@ export class FirstDiveDirector {
                 this.advance('clean');
                 this.setObjective(
                     'CLEAN',
-                    'Glowing trash on the path — press Clean (or F).'
+                    `Glowing trash on the path — ${cleanHow()}.`
                 );
             }
         }

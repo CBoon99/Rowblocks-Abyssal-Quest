@@ -480,6 +480,8 @@ export class Game {
             // Update systems (with error handling)
             try {
                 this.swimmerController.update(deltaTime);
+                const bumps = this.scene3D.getPropBumps?.();
+                if (bumps?.length) this.swimmerController.resolvePropBumps(bumps);
             } catch (e) {
                 // Only log once to avoid spam (3000+ errors)
                 if (!(this as any)._swimmerErrorLogged) {
@@ -667,7 +669,9 @@ export class Game {
         const events = this.fishSystem.drainEvents?.() || [];
         const now = performance.now();
         for (const ev of events) {
-            if (ev.type === 'shark_respect') {
+            if (ev.type === 'body_bump') {
+                this.swimmerController.applySoftPush?.(ev.dir, ev.strength);
+            } else if (ev.type === 'shark_respect') {
                 this.swimmerController.applySoftPush?.(ev.dir, ev.strength);
                 if (now - this.lastSharkToast > 7000) {
                     this.lastSharkToast = now;
@@ -1106,35 +1110,24 @@ export class Game {
                         ? 'You scared it — sit still…'
                         : 'Quick look';
 
-            // Toast (DiscoveryToast if wired on window)
+            // One short kid toast — no depth-0, no fact repeated twice
             try {
                 const Toast = (window as any).DiscoveryToast;
                 if (Toast && typeof Toast.show === 'function') {
+                    const factOnce = funFact
+                        ? funFact.slice(0, 72) + (funFact.length > 72 ? '…' : '')
+                        : '';
                     if (discovery?.isNew || isNewType) {
-                        Toast.show(discovery?.toastText || `New discovery: ${displayName}!`, {
+                        Toast.show(discovery?.toastText || `New friend: ${displayName}!`, {
                             icon: discovery?.card?.emoji || '✦',
-                            subtitle: `${tierLabel} · ${
-                                funFact
-                                    ? funFact.slice(0, 90) + (funFact.length > 90 ? '…' : '')
-                                    : 'Marinepedia updated'
-                            }`,
-                            durationMs: 4200,
+                            subtitle: factOnce || tierLabel,
+                            durationMs: 3800,
                         });
-                        try {
-                            (window as any).gameHUD?.showDiscoveryCard?.(
-                                displayName,
-                                'Added to Marinepedia!'
-                            );
-                        } catch {
-                            /* soft */
-                        }
                     } else {
                         Toast.show(tierLabel, {
                             icon: observeTier === 'trusting' ? '♥' : '·',
-                            subtitle: `${displayName}${
-                                trait ? ` · ${trait}` : ''
-                            }${funFact ? ' — ' + funFact.slice(0, 70) : ''}`,
-                            durationMs: 3000,
+                            subtitle: displayName,
+                            durationMs: 2600,
                         });
                     }
                 }
